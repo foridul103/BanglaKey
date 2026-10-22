@@ -1,5 +1,8 @@
 #include "banglakey_addon.hpp"
 
+#include <fstream>
+#include <cstdlib>
+
 #include <fcitx-utils/key.h>
 #include <fcitx-utils/keysymgen.h>
 #include <fcitx-utils/log.h>
@@ -128,6 +131,77 @@ bool BanglaKeyAddon::isModeSwitchKey(const fcitx::KeyEvent& keyEvent, banglakey:
     return false;
 }
 
+namespace {
+
+std::string getRuntimeModeFilePath() {
+    const char* xdgRuntime = getenv("XDG_RUNTIME_DIR");
+    if (xdgRuntime && *xdgRuntime) {
+        return std::string(xdgRuntime) + "/banglakey/active_mode";
+    }
+    const char* user = getenv("USER");
+    return "/tmp/banglakey-" + std::string(user ? user : "default") + "/active_mode";
+}
+
+} // namespace
+
+void BanglaKeyAddon::syncActiveModeFromDisk(banglakey::ContextId ctxId) {
+    std::string path = getRuntimeModeFilePath();
+    std::ifstream in(path);
+    if (in.is_open()) {
+        std::string line;
+        if (std::getline(in, line)) {
+            while (!line.empty() && (line.back() == '\r' || line.back() == '\n' || line.back() == ' ')) {
+                line.pop_back();
+            }
+            if (!line.empty() && line != active_mode_) {
+                active_mode_ = line;
+                if (engine_) {
+                    if (active_mode_ == "Bijoy Classic" || active_mode_ == "Bijoy Unicode" || active_mode_ == "Bijoy") {
+                        engine_->setMode(ctxId, banglakey::TypingMode::Bijoy);
+                    } else if (active_mode_ == "Unicode" || active_mode_ == "Phonetic") {
+                        engine_->setMode(ctxId, banglakey::TypingMode::Phonetic);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void BanglaKeyAddon::writeActiveModeToDisk(const std::string& targetMode) {
+    std::string path = getRuntimeModeFilePath();
+    std::ofstream out(path, std::ios::trunc);
+    if (out.is_open()) {
+        out << targetMode << "\n";
+    }
+}
+
+void BanglaKeyAddon::setSpecificMode(fcitx::InputContext* ic, banglakey::ContextId ctxId, const std::string& targetMode, fcitx::KeyEvent& keyEvent) {
+    if (!engine_) return;
+
+    engine_->reset(ctxId);
+    ic->inputPanel().reset();
+    ic->updatePreedit();
+    ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+
+    active_mode_ = targetMode;
+    if (targetMode == "Bijoy Classic" || targetMode == "Bijoy Unicode" || targetMode == "Bijoy") {
+        engine_->setMode(ctxId, banglakey::TypingMode::Bijoy);
+    } else if (targetMode == "Unicode" || targetMode == "Phonetic") {
+        engine_->setMode(ctxId, banglakey::TypingMode::Phonetic);
+    }
+
+    writeActiveModeToDisk(targetMode);
+
+    std::string popup = "BanglaKey: " + targetMode;
+    FCITX_INFO() << "BanglaKey: activated mode " << targetMode;
+
+    if (instance_) {
+        instance_->showCustomInputMethodInformation(ic, popup.c_str());
+    }
+
+    keyEvent.filterAndAccept();
+}
+
 void BanglaKeyAddon::handleModeSwitch(fcitx::InputContext* ic, banglakey::ContextId ctxId, fcitx::KeyEvent& keyEvent) {
     auto currentMode = engine_->mode(ctxId);
     auto newMode = (currentMode == banglakey::TypingMode::Phonetic)
@@ -143,6 +217,9 @@ void BanglaKeyAddon::handleModeSwitch(fcitx::InputContext* ic, banglakey::Contex
     ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
 
     const char* modeName = (newMode == banglakey::TypingMode::Bijoy) ? "Bijoy" : "Phonetic";
+    active_mode_ = (newMode == banglakey::TypingMode::Bijoy) ? "Bijoy Classic" : "Unicode";
+    writeActiveModeToDisk(active_mode_);
+
     const char* popupMsg = (newMode == banglakey::TypingMode::Bijoy) ? "BanglaKey: Bijoy Mode" : "BanglaKey: Phonetic Mode";
     FCITX_INFO() << "BanglaKey: switched typing mode to " << modeName;
 
@@ -190,9 +267,45 @@ void BanglaKeyAddon::keyEvent(const fcitx::InputMethodEntry& /*entry*/, fcitx::K
         mod = mod | banglakey::Modifier::CapsLock;
     }
 
-    // Check mode toggle shortcut
+    // Sync active mode from disk if updated by toolbar or tray
+    syncActiveModeFromDisk(ctxId);
+
+    // 1. Ctrl+B: Toggle Bijoy Classic <-> English
+    if ((sym == 'b' || sym == 'B' || sym == FcitxKey_b || sym == FcitxKey_B) &&
+        banglakey::hasModifier(mod, banglakey::Modifier::Control) &&
+        !banglakey::hasModifier(mod, banglakey::Modifier::Alt) &&
+        !banglakey::hasModifier(mod, banglakey::Modifier::Super)) {
+        std::string target = (active_mode_ == "Bijoy Classic") ? "English" : "Bijoy Classic";
+        setSpecificMode(ic, ctxId, target, keyEvent);
+        return;
+    }
+
+    // 2. Ctrl+V: Toggle Unicode <-> English
+    if ((sym == 'v' || sym == 'V' || sym == FcitxKey_v || sym == FcitxKey_V) &&
+        banglakey::hasModifier(mod, banglakey::Modifier::Control) &&
+        !banglakey::hasModifier(mod, banglakey::Modifier::Super)) {
+        std::string target = (active_mode_ == "Unicode") ? "English" : "Unicode";
+        setSpecificMode(ic, ctxId, target, keyEvent);
+        return;
+    }
+
+    // 3. Ctrl+Alt+B or Ctrl+Shift+B: Toggle Bijoy Unicode <-> English
+    if ((sym == 'b' || sym == 'B' || sym == FcitxKey_b || sym == FcitxKey_B) &&
+        banglakey::hasModifier(mod, banglakey::Modifier::Control) &&
+        (banglakey::hasModifier(mod, banglakey::Modifier::Alt) || banglakey::hasModifier(mod, banglakey::Modifier::Shift))) {
+        std::string target = (active_mode_ == "Bijoy Unicode") ? "English" : "Bijoy Unicode";
+        setSpecificMode(ic, ctxId, target, keyEvent);
+        return;
+    }
+
+    // 4. F12 or Ctrl+Alt+M: Toggle / Cycle mode
     if (isModeSwitchKey(keyEvent, mod)) {
         handleModeSwitch(ic, ctxId, keyEvent);
+        return;
+    }
+
+    // If English mode is active, pass key through to applications untouched!
+    if (active_mode_ == "English") {
         return;
     }
 

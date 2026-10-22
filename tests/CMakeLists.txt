@@ -81,11 +81,12 @@ set_target_properties(engine_smoke_test PROPERTIES
 add_test(NAME engine_smoke_test COMMAND engine_smoke_test)
 
 # Desktop Settings Backend Tests
-find_package(Qt6 QUIET COMPONENTS Core)
+find_package(Qt6 QUIET COMPONENTS Core Network)
 if(BANGLAKEY_BUILD_DESKTOP AND Qt6_FOUND AND GTest_FOUND)
     add_executable(banglakey_settings_tests
         unit/test_settings.cpp
         ${CMAKE_SOURCE_DIR}/desktop/src/settings_backend.cpp
+        ${CMAKE_SOURCE_DIR}/desktop/src/ipc_manager.cpp
     )
 
     target_include_directories(banglakey_settings_tests
@@ -97,6 +98,7 @@ if(BANGLAKEY_BUILD_DESKTOP AND Qt6_FOUND AND GTest_FOUND)
         PRIVATE
             BanglaKey::Engine
             Qt6::Core
+            Qt6::Network
             GTest::gtest
             GTest::gtest_main
     )

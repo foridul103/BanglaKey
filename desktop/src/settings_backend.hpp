@@ -76,6 +76,19 @@ public:
     Q_INVOKABLE QVariantMap getBijoyKeymap() const;
     Q_INVOKABLE QVariantMap getPhoneticKeymap() const;
 
+    // Window position persistence
+    Q_INVOKABLE void saveWindowPosition(int x, int y);
+    Q_INVOKABLE int windowX() const;
+    Q_INVOKABLE int windowY() const;
+    Q_INVOKABLE void saveWindowVisible(bool visible);
+    Q_INVOKABLE bool windowVisible() const;
+
+    // Toolbar and Navigation requests
+    Q_INVOKABLE void requestShowToolbar();
+    Q_INVOKABLE void requestHideToolbar();
+    Q_INVOKABLE void requestOpenSettings();
+    Q_INVOKABLE void onSplashFinished();
+
     // Validation helpers
     [[nodiscard]] bool validateMode(const QString& mode) const;
     [[nodiscard]] bool validateAppearance(const QString& appearance) const;
@@ -92,6 +105,9 @@ signals:
     void statusMessageChanged();
     void sandboxCommitChanged();
     void sandboxPreeditChanged();
+    void showToolbarRequested();
+    void hideToolbarRequested();
+    void openSettingsRequested();
 
 private:
     void updateEngineMode();

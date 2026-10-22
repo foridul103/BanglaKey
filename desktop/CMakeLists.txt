@@ -1,7 +1,7 @@
-find_package(Qt6 6.5 QUIET COMPONENTS Core Gui Qml Quick QuickControls2)
+find_package(Qt6 6.5 QUIET COMPONENTS Core Gui Qml Quick QuickControls2 Widgets Network)
 
 if(NOT Qt6_FOUND)
-    message(WARNING "Qt 6 (Core, Gui, Qml, Quick) development packages not found! Ensure qt6-qtbase-devel and qt6-qtdeclarative-devel are installed to build the desktop settings application.")
+    message(WARNING "Qt 6 (Core, Gui, Qml, Quick, Widgets, Network) development packages not found! Ensure qt6-qtbase-devel and qt6-qtdeclarative-devel are installed to build the desktop settings application.")
     return()
 endif()
 
@@ -19,6 +19,10 @@ qt_add_executable(banglakey-settings
     src/main.cpp
     src/settings_backend.hpp
     src/settings_backend.cpp
+    src/ipc_manager.hpp
+    src/ipc_manager.cpp
+    src/tray_manager.hpp
+    src/tray_manager.cpp
 )
 
 qt_add_qml_module(banglakey-settings
@@ -26,6 +30,8 @@ qt_add_qml_module(banglakey-settings
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/Splash.qml
+        qml/Toolbar.qml
 )
 
 target_compile_definitions(banglakey-settings
@@ -40,6 +46,8 @@ target_link_libraries(banglakey-settings
         Qt6::Qml
         Qt6::Quick
         Qt6::QuickControls2
+        Qt6::Widgets
+        Qt6::Network
         BanglaKey::Engine
 )
 

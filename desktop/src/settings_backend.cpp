@@ -29,7 +29,11 @@ QString SettingsBackend::configFilePath() const {
 
 bool SettingsBackend::validateMode(const QString& mode) const {
     return (mode.compare("Phonetic", Qt::CaseInsensitive) == 0 ||
-            mode.compare("Bijoy", Qt::CaseInsensitive) == 0);
+            mode.compare("Bijoy", Qt::CaseInsensitive) == 0 ||
+            mode.compare("Bijoy Classic", Qt::CaseInsensitive) == 0 ||
+            mode.compare("Bijoy Unicode", Qt::CaseInsensitive) == 0 ||
+            mode.compare("Unicode", Qt::CaseInsensitive) == 0 ||
+            mode.compare("English", Qt::CaseInsensitive) == 0);
 }
 
 bool SettingsBackend::validateAppearance(const QString& appearance) const {
@@ -62,7 +66,19 @@ void SettingsBackend::setCurrentMode(const QString& mode) {
     }
 
     // Normalize casing
-    current_mode_ = (mode.compare("Bijoy", Qt::CaseInsensitive) == 0) ? "Bijoy" : "Phonetic";
+    if (mode.compare("Bijoy", Qt::CaseInsensitive) == 0) {
+        current_mode_ = "Bijoy";
+    } else if (mode.compare("Bijoy Classic", Qt::CaseInsensitive) == 0) {
+        current_mode_ = "Bijoy Classic";
+    } else if (mode.compare("Bijoy Unicode", Qt::CaseInsensitive) == 0) {
+        current_mode_ = "Bijoy Unicode";
+    } else if (mode.compare("Unicode", Qt::CaseInsensitive) == 0) {
+        current_mode_ = "Unicode";
+    } else if (mode.compare("English", Qt::CaseInsensitive) == 0) {
+        current_mode_ = "English";
+    } else {
+        current_mode_ = "Phonetic";
+    }
     updateEngineMode();
 
     emit currentModeChanged();
@@ -180,11 +196,44 @@ void SettingsBackend::updateEngineMode() {
         return;
     }
 
-    if (current_mode_ == "Bijoy") {
+    if (current_mode_ == "Bijoy" || current_mode_ == "Bijoy Classic" || current_mode_ == "Bijoy Unicode") {
         engine_->setMode(banglakey::TypingMode::Bijoy);
     } else {
         engine_->setMode(banglakey::TypingMode::Phonetic);
     }
+}
+
+void SettingsBackend::saveWindowPosition(int x, int y) {
+    const QString path = configFilePath();
+    QSettings settings(path, QSettings::IniFormat);
+    settings.setValue("Toolbar/x", x);
+    settings.setValue("Toolbar/y", y);
+    settings.sync();
+}
+
+int SettingsBackend::windowX() const {
+    const QString path = configFilePath();
+    QSettings settings(path, QSettings::IniFormat);
+    return settings.value("Toolbar/x", 200).toInt();
+}
+
+int SettingsBackend::windowY() const {
+    const QString path = configFilePath();
+    QSettings settings(path, QSettings::IniFormat);
+    return settings.value("Toolbar/y", 40).toInt();
+}
+
+void SettingsBackend::saveWindowVisible(bool visible) {
+    const QString path = configFilePath();
+    QSettings settings(path, QSettings::IniFormat);
+    settings.setValue("Toolbar/visible", visible);
+    settings.sync();
+}
+
+bool SettingsBackend::windowVisible() const {
+    const QString path = configFilePath();
+    QSettings settings(path, QSettings::IniFormat);
+    return settings.value("Toolbar/visible", true).toBool();
 }
 
 void SettingsBackend::checkFcitx5Status() {
@@ -299,7 +348,19 @@ bool SettingsBackend::loadConfig() {
 
     QString savedMode = settings.value("General/TypingMode", "Phonetic").toString();
     if (validateMode(savedMode)) {
-        current_mode_ = (savedMode.compare("Bijoy", Qt::CaseInsensitive) == 0) ? "Bijoy" : "Phonetic";
+        if (savedMode.compare("Bijoy", Qt::CaseInsensitive) == 0) {
+            current_mode_ = "Bijoy";
+        } else if (savedMode.compare("Bijoy Classic", Qt::CaseInsensitive) == 0) {
+            current_mode_ = "Bijoy Classic";
+        } else if (savedMode.compare("Bijoy Unicode", Qt::CaseInsensitive) == 0) {
+            current_mode_ = "Bijoy Unicode";
+        } else if (savedMode.compare("Unicode", Qt::CaseInsensitive) == 0) {
+            current_mode_ = "Unicode";
+        } else if (savedMode.compare("English", Qt::CaseInsensitive) == 0) {
+            current_mode_ = "English";
+        } else {
+            current_mode_ = "Phonetic";
+        }
     } else {
         current_mode_ = "Phonetic";
     }
@@ -504,6 +565,22 @@ QVariantMap SettingsBackend::getPhoneticKeymap() const {
     map["::"] = "ঃ";
     map["^"] = "ঁ";
     return map;
+}
+
+void SettingsBackend::requestShowToolbar() {
+    emit showToolbarRequested();
+}
+
+void SettingsBackend::requestHideToolbar() {
+    emit hideToolbarRequested();
+}
+
+void SettingsBackend::requestOpenSettings() {
+    emit openSettingsRequested();
+}
+
+void SettingsBackend::onSplashFinished() {
+    emit showToolbarRequested();
 }
 
 } // namespace banglakey::desktop

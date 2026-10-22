@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "settings_backend.hpp"
+#include "ipc_manager.hpp"
 
 namespace {
 
@@ -214,4 +215,69 @@ TEST_F(SettingsBackendTest, KeymapsAndInteractiveSandbox) {
     backend.clearSandbox();
     EXPECT_TRUE(backend.sandboxCommit().isEmpty());
     EXPECT_TRUE(backend.sandboxPreedit().isEmpty());
+}
+
+TEST(IpcManagerTest, ModeConversionsAndDisplayNames) {
+    using banglakey::desktop::AppMode;
+    using banglakey::desktop::IpcManager;
+
+    EXPECT_EQ(IpcManager::modeToString(AppMode::English), "English");
+    EXPECT_EQ(IpcManager::modeToString(AppMode::BijoyClassic), "Bijoy Classic");
+    EXPECT_EQ(IpcManager::modeToString(AppMode::BijoyUnicode), "Bijoy Unicode");
+    EXPECT_EQ(IpcManager::modeToString(AppMode::Unicode), "Unicode");
+
+    EXPECT_EQ(IpcManager::stringToMode("English"), AppMode::English);
+    EXPECT_EQ(IpcManager::stringToMode("Bijoy Classic"), AppMode::BijoyClassic);
+    EXPECT_EQ(IpcManager::stringToMode("BijoyClassic"), AppMode::BijoyClassic);
+    EXPECT_EQ(IpcManager::stringToMode("Bijoy Unicode"), AppMode::BijoyUnicode);
+    EXPECT_EQ(IpcManager::stringToMode("BijoyUnicode"), AppMode::BijoyUnicode);
+    EXPECT_EQ(IpcManager::stringToMode("Unicode"), AppMode::Unicode);
+    EXPECT_EQ(IpcManager::stringToMode("Phonetic"), AppMode::Unicode);
+
+    EXPECT_EQ(IpcManager::modeToDisplayName(AppMode::English), "English");
+    EXPECT_EQ(IpcManager::modeToDisplayName(AppMode::BijoyClassic), "বিজয় ক্লাসিক");
+    EXPECT_EQ(IpcManager::modeToDisplayName(AppMode::BijoyUnicode), "বিজয় ইউনিকোড");
+    EXPECT_EQ(IpcManager::modeToDisplayName(AppMode::Unicode), "ইউনিকোড");
+}
+
+TEST(IpcManagerTest, ModeCycleOrder) {
+    using banglakey::desktop::AppMode;
+    using banglakey::desktop::IpcManager;
+
+    IpcManager ipc;
+    ipc.setMode(AppMode::English);
+    EXPECT_EQ(ipc.currentMode(), AppMode::English);
+
+    // English -> Unicode
+    ipc.cycleMode();
+    EXPECT_EQ(ipc.currentMode(), AppMode::Unicode);
+
+    // Unicode -> Bijoy Unicode
+    ipc.cycleMode();
+    EXPECT_EQ(ipc.currentMode(), AppMode::BijoyUnicode);
+
+    // Bijoy Unicode -> Bijoy Classic
+    ipc.cycleMode();
+    EXPECT_EQ(ipc.currentMode(), AppMode::BijoyClassic);
+
+    // Bijoy Classic -> English
+    ipc.cycleMode();
+    EXPECT_EQ(ipc.currentMode(), AppMode::English);
+}
+
+TEST(IpcManagerTest, RuntimeModeFileSynchronization) {
+    using banglakey::desktop::AppMode;
+    using banglakey::desktop::IpcManager;
+
+    IpcManager ipc;
+    ipc.setMode(AppMode::BijoyUnicode);
+
+    QString path = IpcManager::runtimeModeFilePath();
+    EXPECT_TRUE(QFile::exists(path));
+
+    QFile file(path);
+    ASSERT_TRUE(file.open(QIODevice::ReadOnly | QIODevice::Text));
+    QTextStream in(&file);
+    QString modeLine = in.readLine();
+    EXPECT_EQ(modeLine, "Bijoy Unicode");
 }

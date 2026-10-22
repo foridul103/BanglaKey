@@ -73,11 +73,17 @@ public:
 
     [[nodiscard]] fcitx::Instance* instance() const noexcept { return instance_; }
     [[nodiscard]] banglakey::TypingEngine* engine() const noexcept { return engine_.get(); }
+    [[nodiscard]] const std::string& activeMode() const noexcept { return active_mode_; }
+
+    void setSpecificMode(fcitx::InputContext* ic, banglakey::ContextId ctxId, const std::string& targetMode, fcitx::KeyEvent& keyEvent);
+    void syncActiveModeFromDisk(banglakey::ContextId ctxId);
+    void writeActiveModeToDisk(const std::string& targetMode);
 
 private:
     [[nodiscard]] bool isModeSwitchKey(const fcitx::KeyEvent& keyEvent, banglakey::Modifier mod) const noexcept;
     void handleModeSwitch(fcitx::InputContext* ic, banglakey::ContextId ctxId, fcitx::KeyEvent& keyEvent);
 
+    std::string active_mode_{"Unicode"};
     fcitx::Instance* instance_{nullptr};
     std::unique_ptr<banglakey::TypingEngine> engine_{nullptr};
     fcitx::FactoryFor<BanglaKeyContextProperty> propFactory_;
