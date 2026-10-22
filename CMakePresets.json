@@ -1,0 +1,83 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Debug (All Components)",
+      "description": "Standard Debug build using Ninja",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BANGLAKEY_BUILD_ENGINE": "ON",
+        "BANGLAKEY_BUILD_FCITX5": "ON",
+        "BANGLAKEY_BUILD_DESKTOP": "ON",
+        "BANGLAKEY_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "description": "Release build with optimizations",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BANGLAKEY_BUILD_ENGINE": "ON",
+        "BANGLAKEY_BUILD_FCITX5": "ON",
+        "BANGLAKEY_BUILD_DESKTOP": "ON",
+        "BANGLAKEY_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "engine-only",
+      "displayName": "Engine & Tests Only",
+      "description": "Builds only the core engine and tests without Qt/Fcitx5 dependencies",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-engine",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BANGLAKEY_BUILD_ENGINE": "ON",
+        "BANGLAKEY_BUILD_FCITX5": "OFF",
+        "BANGLAKEY_BUILD_DESKTOP": "OFF",
+        "BANGLAKEY_BUILD_TESTS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "engine-only",
+      "configurePreset": "engine-only"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "engine-only",
+      "configurePreset": "engine-only",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+[Addon]
+Name=BanglaKey
+Name[bn]=বাংলাকি
+Comment=Bengali Input Method (Bijoy & Phonetic)
+Comment[bn]=বাংলা ইনপুট পদ্ধতি (বিজয় এবং ফোনেটিক)
+Category=InputMethod
+Type=SharedLibrary
+Library=libbanglakey-fcitx5
+OnDemand=False
+Configurable=True
+
+[Addon/Dependencies]
+0=core

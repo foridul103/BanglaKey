@@ -1,0 +1,18 @@
+FROM registry.fedoraproject.org/fedora:44
+
+RUN dnf install -y \
+    gcc-c++ \
+    cmake \
+    ninja-build \
+    git \
+    pkg-config \
+    extra-cmake-modules \
+    fcitx5-devel \
+    fcitx5 \
+    fcitx5-configtool \
+    gtest-devel \
+    qt6-qtbase-devel \
+    qt6-qtdeclarative-devel \
+    && dnf clean all
+
+WORKDIR /workspace
