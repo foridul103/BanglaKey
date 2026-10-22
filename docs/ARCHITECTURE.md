@@ -172,7 +172,60 @@ The settings application is developed using Qt 6 and QML:
 
 ---
 
-## 6. Wayland & X11 Compatibility
+## 6. Bijoy Bayanno-Style Desktop Interaction Model
+
+BanglaKey Linux implements the familiar, proven interaction model inspired by classic Bengali desktop utilities (such as Bijoy Bayanno), consisting of:
+
+1. **Startup Splash Screen (`Splash.qml`)**:
+   - A compact, polished startup banner displaying original BanglaKey branding, Bengali typography, and an initialization transition.
+   - Automatically closes after ~1.8 seconds and smoothly transitions to the floating toolbar.
+
+2. **Floating Toolbar / Topbar (`Toolbar.qml`)**:
+   - Compact horizontal floating window with a classic blue toolbar gradient.
+   - Window attributes: Frameless (`Qt::FramelessWindowHint`), stays above normal windows (`Qt::WindowStaysOnTopHint`), tool window (`Qt::Tool`).
+   - Movable by dragging anywhere across the toolbar.
+   - Contains:
+     - BanglaKey logo emblem.
+     - Live Bengali/English mode title indicator.
+     - Mode selection dropdown with 4 options: **English**, **Bijoy Classic**, **Bijoy Unicode**, **Unicode**.
+     - Settings button (`⚙`) to open the full preferences & diagnostics panel.
+     - Minimize button (`—`) and Close button (`✕`) which hide the toolbar to the system tray without terminating background input services.
+   - Automatically persists position (`x`, `y`) and visibility state across sessions in `~/.config/banglakey/config.ini`.
+
+3. **System Tray Integration (`QSystemTrayIcon` & Context Menu)**:
+   - Persistent tray icon in the system notification area.
+   - **Left-Click Action**: Cycles through the 4 input modes in predictable order (`English` → `Unicode` → `Bijoy Unicode` → `Bijoy Classic` → `English`).
+   - **Right-Click Context Menu**:
+     1. `Unicode` (colored square indicator, checkmark when active)
+     2. `Bijoy Unicode` (colored square indicator, checkmark when active)
+     3. `Bijoy Classic` (colored square indicator, checkmark when active)
+     4. `English` (BanglaKey application icon, checkmark when active)
+     5. Separator
+     6. `Show as Topbar` (green restore icon)
+     7. `Close` (red X icon, exits the application cleanly)
+
+4. **Input Modes Definition**:
+   - **English**: Raw keystroke passthrough; the Fcitx5 addon forwards all keys to the host application without Bengali processing.
+   - **Unicode**: Natural phonetic transliteration (Avro-compatible Roman-to-Bengali mapping).
+   - **Bijoy Unicode**: Standard Bijoy keyboard layout producing modern standard Unicode Bengali characters.
+   - **Bijoy Classic**: Standard Bijoy keyboard layout.
+
+5. **Inter-Process Communication (IPC)**:
+   - Lightweight, permission-conscious IPC anchored in `$XDG_RUNTIME_DIR/banglakey/`:
+     - **Runtime State File**: `$XDG_RUNTIME_DIR/banglakey/active_mode` (permissions `0600`).
+     - **Local Domain Socket**: `$XDG_RUNTIME_DIR/banglakey/ipc.sock` via `QLocalServer`.
+   - When the user selects a mode via the Toolbar dropdown or Tray menu, the desktop application updates the state file and notifies connected listeners.
+   - The Fcitx5 addon checks this state file on key events, keeping the running input engine, floating toolbar dropdown, and system tray checkmarks synchronized in real-time.
+
+6. **Global Keyboard Shortcuts**:
+   - `Ctrl+B`: Toggles **Bijoy Classic** mode. Pressing it again while in Bijoy Classic mode returns to **English**.
+   - `Ctrl+V` (and `Ctrl+Alt+V` fallback): Toggles **Unicode** (Phonetic) mode. Pressing it again while in Unicode mode returns to **English**.
+   - `Ctrl+Alt+B` / `Ctrl+Shift+B`: Toggles **Bijoy Unicode** mode.
+   - `F12` / `Ctrl+Alt+M`: Cycles sequentially through all modes.
+
+---
+
+## 7. Wayland & X11 Compatibility
 
 Under Fedora 44 with KDE Plasma 6:
 - Wayland is the default session. Fcitx5 acts as the system input method server communicating via `zwp_input_method_v1` / `zwp_input_method_v2` protocols with KWin.
@@ -181,7 +234,7 @@ Under Fedora 44 with KDE Plasma 6:
 
 ---
 
-## 7. Packaging & Distribution
+## 8. Packaging & Distribution
 
 - The project provides a standard Fedora RPM specification (`packaging/rpm/banglakey.spec`).
 - Target directories follow standard FHS / Fedora packaging guidelines:
