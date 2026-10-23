@@ -220,7 +220,7 @@ int SettingsBackend::windowX() const {
 int SettingsBackend::windowY() const {
     const QString path = configFilePath();
     QSettings settings(path, QSettings::IniFormat);
-    return settings.value("Toolbar/y", 40).toInt();
+    return settings.value("Toolbar/y", 10).toInt();
 }
 
 void SettingsBackend::saveWindowVisible(bool visible) {
