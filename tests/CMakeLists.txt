@@ -81,7 +81,7 @@ set_target_properties(engine_smoke_test PROPERTIES
 add_test(NAME engine_smoke_test COMMAND engine_smoke_test)
 
 # Desktop Settings Backend Tests
-find_package(Qt6 QUIET COMPONENTS Core Network)
+find_package(Qt6 QUIET COMPONENTS Core Network Widgets)
 if(BANGLAKEY_BUILD_DESKTOP AND Qt6_FOUND AND GTest_FOUND)
     add_executable(banglakey_settings_tests
         unit/test_settings.cpp
@@ -99,6 +99,7 @@ if(BANGLAKEY_BUILD_DESKTOP AND Qt6_FOUND AND GTest_FOUND)
             BanglaKey::Engine
             Qt6::Core
             Qt6::Network
+            Qt6::Widgets
             GTest::gtest
             GTest::gtest_main
     )

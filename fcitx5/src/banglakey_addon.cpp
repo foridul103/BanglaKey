@@ -156,7 +156,15 @@ void BanglaKeyAddon::syncActiveModeFromDisk(banglakey::ContextId ctxId) {
             if (!line.empty() && line != active_mode_) {
                 active_mode_ = line;
                 if (engine_) {
-                    if (active_mode_ == "Bijoy Classic" || active_mode_ == "Bijoy Unicode" || active_mode_ == "Bijoy") {
+                    if (active_mode_ == "Bijoy Classic") {
+                        auto cfg = engine_->config();
+                        cfg.bijoy_variant = banglakey::BijoyVariant::Classic;
+                        engine_->setConfig(cfg);
+                        engine_->setMode(ctxId, banglakey::TypingMode::Bijoy);
+                    } else if (active_mode_ == "Bijoy Unicode") {
+                        auto cfg = engine_->config();
+                        cfg.bijoy_variant = banglakey::BijoyVariant::UniJoy;
+                        engine_->setConfig(cfg);
                         engine_->setMode(ctxId, banglakey::TypingMode::Bijoy);
                     } else if (active_mode_ == "Unicode" || active_mode_ == "Phonetic") {
                         engine_->setMode(ctxId, banglakey::TypingMode::Phonetic);
@@ -184,7 +192,15 @@ void BanglaKeyAddon::setSpecificMode(fcitx::InputContext* ic, banglakey::Context
     ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
 
     active_mode_ = targetMode;
-    if (targetMode == "Bijoy Classic" || targetMode == "Bijoy Unicode" || targetMode == "Bijoy") {
+    if (targetMode == "Bijoy Classic") {
+        auto cfg = engine_->config();
+        cfg.bijoy_variant = banglakey::BijoyVariant::Classic;
+        engine_->setConfig(cfg);
+        engine_->setMode(ctxId, banglakey::TypingMode::Bijoy);
+    } else if (targetMode == "Bijoy Unicode") {
+        auto cfg = engine_->config();
+        cfg.bijoy_variant = banglakey::BijoyVariant::UniJoy;
+        engine_->setConfig(cfg);
         engine_->setMode(ctxId, banglakey::TypingMode::Bijoy);
     } else if (targetMode == "Unicode" || targetMode == "Phonetic") {
         engine_->setMode(ctxId, banglakey::TypingMode::Phonetic);
