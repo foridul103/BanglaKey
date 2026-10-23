@@ -579,6 +579,10 @@ void SettingsBackend::requestOpenSettings() {
     emit openSettingsRequested();
 }
 
+void SettingsBackend::requestExit() {
+    emit exitRequested();
+}
+
 void SettingsBackend::onSplashFinished() {
     emit showToolbarRequested();
 }

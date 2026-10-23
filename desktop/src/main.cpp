@@ -6,6 +6,7 @@
 #include <QIcon>
 #include <QScreen>
 #include <QDebug>
+#include <QTimer>
 #include <memory>
 
 #include "ipc_manager.hpp"
@@ -85,6 +86,9 @@ int main(int argc, char* argv[]) {
             toolbarWindow = qobject_cast<QQuickWindow*>(obj);
 
             if (toolbarWindow) {
+                toolbarWindow->setProperty("backend", QVariant::fromValue(backend.get()));
+                toolbarWindow->setProperty("ipcManager", QVariant::fromValue(ipcManager.get()));
+
                 // Restore saved coordinates
                 int savedX = backend->windowX();
                 int savedY = backend->windowY();
@@ -102,7 +106,8 @@ int main(int argc, char* argv[]) {
 
                 toolbarWindow->setX(savedX);
                 toolbarWindow->setY(savedY);
-
+            } else {
+                qWarning() << "BanglaKey: Failed to create Toolbar window:" << toolbarComp.errors();
             }
         }
 
@@ -120,6 +125,9 @@ int main(int argc, char* argv[]) {
 
     QObject::connect(backend.get(), &banglakey::desktop::SettingsBackend::openSettingsRequested,
                      &app, showSettingsWindow);
+
+    QObject::connect(backend.get(), &banglakey::desktop::SettingsBackend::exitRequested,
+                     &app, &QCoreApplication::quit);
 
     QObject::connect(trayManager.get(), &banglakey::desktop::TrayManager::showToolbarRequested,
                      &app, showToolbarWindow);
@@ -152,11 +160,21 @@ int main(int argc, char* argv[]) {
         auto* splashWindow = qobject_cast<QQuickWindow*>(splashObj);
 
         if (splashWindow) {
+            splashWindow->setProperty("backend", QVariant::fromValue(backend.get()));
             splashWindow->show();
+            splashWindow->raise();
+            splashWindow->requestActivate();
         } else {
-            // Fallback: If splash failed to create, show toolbar directly
+            qWarning() << "BanglaKey: Failed to create Splash window, opening toolbar directly:" << splashComp.errors();
             showToolbarWindow();
         }
+
+        // Safety fallback: Ensure toolbar displays after splash even if signals fail
+        QTimer::singleShot(2200, &app, [&]() {
+            if (!toolbarWindow || !toolbarWindow->isVisible()) {
+                showToolbarWindow();
+            }
+        });
     }
 
     return app.exec();

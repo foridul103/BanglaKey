@@ -87,6 +87,7 @@ public:
     Q_INVOKABLE void requestShowToolbar();
     Q_INVOKABLE void requestHideToolbar();
     Q_INVOKABLE void requestOpenSettings();
+    Q_INVOKABLE void requestExit();
     Q_INVOKABLE void onSplashFinished();
 
     // Validation helpers
@@ -108,6 +109,7 @@ signals:
     void showToolbarRequested();
     void hideToolbarRequested();
     void openSettingsRequested();
+    void exitRequested();
 
 private:
     void updateEngineMode();

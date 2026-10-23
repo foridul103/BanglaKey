@@ -13,7 +13,7 @@ Window {
     maximumWidth: 460
     minimumHeight: 38
     maximumHeight: 38
-    flags: Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+    flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
     color: "transparent"
 
     property var backend: null
@@ -247,15 +247,15 @@ Window {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         if (toolbarWindow.backend) {
-                            toolbarWindow.backend.saveWindowVisible(false)
+                            toolbarWindow.backend.requestExit()
+                        } else {
+                            toolbarWindow.close()
                         }
-                        toolbarWindow.hide()
-                        toolbarWindow.closeRequested()
                     }
                 }
 
                 ToolTip.visible: closeMouse.containsMouse
-                ToolTip.text: qsTr("Close toolbar to tray")
+                ToolTip.text: qsTr("Exit BanglaKey")
                 ToolTip.delay: 400
             }
         }
