@@ -8,6 +8,8 @@
 #include <QFileInfo>
 #include <QProcess>
 #include <QTextStream>
+#include <QMenu>
+#include <QAction>
 #include <QDebug>
 
 namespace banglakey::desktop {
@@ -585,6 +587,64 @@ void SettingsBackend::requestExit() {
 
 void SettingsBackend::onSplashFinished() {
     emit showToolbarRequested();
+}
+
+void SettingsBackend::openLayoutMenu(int globalX, int globalY) {
+    QMenu menu;
+    menu.setStyleSheet(
+        "QMenu {"
+        "  background-color: #ffffff;"
+        "  color: #1a1a1a;"
+        "  border: 1px solid #c0c0c0;"
+        "  padding: 4px;"
+        "  font-size: 13px;"
+        "}"
+        "QMenu::item {"
+        "  padding: 6px 28px 6px 14px;"
+        "  margin: 1px 0px;"
+        "}"
+        "QMenu::item:selected {"
+        "  background-color: #e3f2fd;"
+        "  color: #0d47a1;"
+        "}"
+    );
+
+    auto* actUnicode = menu.addAction(QString::fromUtf8("Unicode (ইউনিকোড)"));
+    auto* actBijoyUni = menu.addAction(QString::fromUtf8("Bijoy Unicode (বিজয় ইউনিকোড)"));
+    auto* actClassic = menu.addAction(QString::fromUtf8("Bijoy Classic (বিজয় ক্লাসিক)"));
+    auto* actEnglish = menu.addAction(QString::fromUtf8("English (ইংরেজি)"));
+
+    actUnicode->setCheckable(true);
+    actBijoyUni->setCheckable(true);
+    actClassic->setCheckable(true);
+    actEnglish->setCheckable(true);
+
+    QString cur = currentMode();
+    actUnicode->setChecked(cur == "Unicode");
+    actBijoyUni->setChecked(cur == "Bijoy Unicode");
+    actClassic->setChecked(cur == "Bijoy Classic");
+    actEnglish->setChecked(cur == "English");
+
+    menu.addSeparator();
+    auto* actTray = menu.addAction(QString::fromUtf8("Minimize to System Tray (ট্রে-তে পাঠান)"));
+    auto* actClose = menu.addAction(QString::fromUtf8("Exit BanglaKey (অ্যাপ বন্ধ করুন)"));
+
+    QAction* selected = menu.exec(QPoint(globalX, globalY));
+    if (!selected) return;
+
+    if (selected == actUnicode) {
+        setCurrentMode("Unicode");
+    } else if (selected == actBijoyUni) {
+        setCurrentMode("Bijoy Unicode");
+    } else if (selected == actClassic) {
+        setCurrentMode("Bijoy Classic");
+    } else if (selected == actEnglish) {
+        setCurrentMode("English");
+    } else if (selected == actTray) {
+        emit hideToolbarRequested();
+    } else if (selected == actClose) {
+        emit exitRequested();
+    }
 }
 
 } // namespace banglakey::desktop

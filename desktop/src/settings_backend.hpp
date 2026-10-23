@@ -89,6 +89,7 @@ public:
     Q_INVOKABLE void requestOpenSettings();
     Q_INVOKABLE void requestExit();
     Q_INVOKABLE void onSplashFinished();
+    Q_INVOKABLE void openLayoutMenu(int globalX, int globalY);
 
     // Validation helpers
     [[nodiscard]] bool validateMode(const QString& mode) const;

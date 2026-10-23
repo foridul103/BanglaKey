@@ -1,24 +1,22 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 
 Window {
     id: toolbarWindow
     visible: true
-    width: 460
-    height: dropdownOpen ? 210 : 38
-    minimumWidth: 420
-    maximumWidth: 500
+    width: 440
+    height: 38
+    minimumWidth: 400
+    maximumWidth: 480
     minimumHeight: 38
-    maximumHeight: 220
+    maximumHeight: 38
     flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
     color: "transparent"
 
     property var backend: null
     property var ipcManager: null
-    property bool dropdownOpen: false
 
     signal hideRequested()
     signal closeRequested()
@@ -32,7 +30,7 @@ Window {
         if (toolbarWindow.backend) {
             var sx = toolbarWindow.backend.windowX()
             var sy = toolbarWindow.backend.windowY()
-            if (sy > 0 && sy < Screen.height - 100) targetY = sy
+            if (sy > 0 && sy < Screen.height - 80) targetY = sy
             if (sx > 0 && sx < screenW - toolbarWindow.width) targetX = sx
         }
         toolbarWindow.x = targetX
@@ -42,8 +40,7 @@ Window {
     // Top horizontal bar frame (38px high)
     Rectangle {
         id: toolbarFrame
-        width: parent.width
-        height: 38
+        anchors.fill: parent
         radius: 6
         border.color: "#0f3e7a"
         border.width: 1
@@ -55,7 +52,7 @@ Window {
             GradientStop { position: 1.0; color: "#0c3b77" }
         }
 
-        // Native compositor move on drag
+        // Native compositor move on dragging the blue bar
         MouseArea {
             id: dragArea
             anchors.fill: parent
@@ -105,14 +102,15 @@ Window {
                 }
             }
 
-            // 2. Mode Selector Button (Click opens full Dropdown menu)
+            // 2. Mode Selector Dropdown Button (Click opens native popup menu)
             Rectangle {
                 id: modeBtn
-                Layout.preferredWidth: 125
+                z: 10
+                Layout.preferredWidth: 120
                 Layout.preferredHeight: 26
                 radius: 4
                 color: modeBtnMouse.containsMouse ? "#f1f5f9" : "#ffffff"
-                border.color: toolbarWindow.dropdownOpen ? "#38bdf8" : "#94a3b8"
+                border.color: "#38bdf8"
                 border.width: 1.5
 
                 RowLayout {
@@ -138,9 +136,9 @@ Window {
                     }
 
                     Text {
-                        text: toolbarWindow.dropdownOpen ? "▲" : "▼"
+                        text: "▼"
                         font.pixelSize: 9
-                        color: "#64748b"
+                        color: "#475569"
                     }
                 }
 
@@ -150,18 +148,20 @@ Window {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        toolbarWindow.dropdownOpen = !toolbarWindow.dropdownOpen
+                        if (toolbarWindow.backend) {
+                            toolbarWindow.backend.openLayoutMenu(
+                                toolbarWindow.x + modeBtn.x,
+                                toolbarWindow.y + toolbarWindow.height + 2
+                            )
+                        }
                     }
                 }
-
-                ToolTip.visible: modeBtnMouse.containsMouse && !toolbarWindow.dropdownOpen
-                ToolTip.text: qsTr("Click to choose Bengali / English layout")
-                ToolTip.delay: 300
             }
 
             // 3. Quick-Switch Mode Buttons (1-Click Switch Directly on Toolbar)
             RowLayout {
                 spacing: 3
+                z: 10
 
                 // English
                 Rectangle {
@@ -170,7 +170,7 @@ Window {
                     Layout.preferredHeight: 22
                     radius: 3
                     property bool active: toolbarWindow.ipcManager && toolbarWindow.ipcManager.currentModeString === "English"
-                    color: active ? "#ffffff" : (qbEngM.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(1, 1, 1, 0.12))
+                    color: active ? "#ffffff" : (qbEngM.containsMouse ? Qt.rgba(1, 1, 1, 0.28) : Qt.rgba(1, 1, 1, 0.12))
                     border.color: active ? "#38bdf8" : "transparent"
                     border.width: 1
 
@@ -188,24 +188,19 @@ Window {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            toolbarWindow.dropdownOpen = false
                             if (toolbarWindow.ipcManager) toolbarWindow.ipcManager.setModeFromString("English")
                         }
                     }
-
-                    ToolTip.visible: qbEngM.containsMouse
-                    ToolTip.text: qsTr("English Mode")
-                    ToolTip.delay: 300
                 }
 
                 // Bijoy Classic
                 Rectangle {
                     id: qbClassic
-                    Layout.preferredWidth: 48
+                    Layout.preferredWidth: 46
                     Layout.preferredHeight: 22
                     radius: 3
                     property bool active: toolbarWindow.ipcManager && toolbarWindow.ipcManager.currentModeString === "Bijoy Classic"
-                    color: active ? "#f59e0b" : (qbClassicM.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(1, 1, 1, 0.12))
+                    color: active ? "#f59e0b" : (qbClassicM.containsMouse ? Qt.rgba(1, 1, 1, 0.28) : Qt.rgba(1, 1, 1, 0.12))
                     border.color: active ? "#ffffff" : "transparent"
                     border.width: 1
 
@@ -223,24 +218,19 @@ Window {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            toolbarWindow.dropdownOpen = false
                             if (toolbarWindow.ipcManager) toolbarWindow.ipcManager.setModeFromString("Bijoy Classic")
                         }
                     }
-
-                    ToolTip.visible: qbClassicM.containsMouse
-                    ToolTip.text: qsTr("Bijoy Classic (Ctrl+B)")
-                    ToolTip.delay: 300
                 }
 
                 // Bijoy Unicode
                 Rectangle {
                     id: qbBijoyUni
-                    Layout.preferredWidth: 44
+                    Layout.preferredWidth: 42
                     Layout.preferredHeight: 22
                     radius: 3
                     property bool active: toolbarWindow.ipcManager && toolbarWindow.ipcManager.currentModeString === "Bijoy Unicode"
-                    color: active ? "#10b981" : (qbBijoyUniM.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(1, 1, 1, 0.12))
+                    color: active ? "#10b981" : (qbBijoyUniM.containsMouse ? Qt.rgba(1, 1, 1, 0.28) : Qt.rgba(1, 1, 1, 0.12))
                     border.color: active ? "#ffffff" : "transparent"
                     border.width: 1
 
@@ -258,30 +248,25 @@ Window {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            toolbarWindow.dropdownOpen = false
                             if (toolbarWindow.ipcManager) toolbarWindow.ipcManager.setModeFromString("Bijoy Unicode")
                         }
                     }
-
-                    ToolTip.visible: qbBijoyUniM.containsMouse
-                    ToolTip.text: qsTr("Bijoy Unicode (Ctrl+Alt+B)")
-                    ToolTip.delay: 300
                 }
 
                 // Unicode (Phonetic)
                 Rectangle {
                     id: qbUni
-                    Layout.preferredWidth: 50
+                    Layout.preferredWidth: 48
                     Layout.preferredHeight: 22
                     radius: 3
                     property bool active: toolbarWindow.ipcManager && toolbarWindow.ipcManager.currentModeString === "Unicode"
-                    color: active ? "#06b6d4" : (qbUniM.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(1, 1, 1, 0.12))
+                    color: active ? "#06b6d4" : (qbUniM.containsMouse ? Qt.rgba(1, 1, 1, 0.28) : Qt.rgba(1, 1, 1, 0.12))
                     border.color: active ? "#ffffff" : "transparent"
                     border.width: 1
 
                     Text {
                         anchors.centerIn: parent
-                        text: "ইউনিকোড"
+                        text: "ইউনি"
                         font.pixelSize: 10
                         font.bold: true
                         color: "#ffffff"
@@ -293,14 +278,9 @@ Window {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            toolbarWindow.dropdownOpen = false
                             if (toolbarWindow.ipcManager) toolbarWindow.ipcManager.setModeFromString("Unicode")
                         }
                     }
-
-                    ToolTip.visible: qbUniM.containsMouse
-                    ToolTip.text: qsTr("Unicode / Phonetic (Ctrl+V)")
-                    ToolTip.delay: 300
                 }
             }
 
@@ -309,11 +289,12 @@ Window {
             // 4. Dedicated System Tray Minimize Button
             Rectangle {
                 id: btnTray
+                z: 10
                 Layout.preferredWidth: 24
                 Layout.preferredHeight: 24
                 radius: 3
-                color: trayMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.28) : Qt.rgba(1, 1, 1, 0.12)
-                border.color: Qt.rgba(1, 1, 1, 0.2)
+                color: trayMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.3) : Qt.rgba(1, 1, 1, 0.12)
+                border.color: Qt.rgba(1, 1, 1, 0.25)
                 border.width: 1
 
                 Text {
@@ -330,7 +311,6 @@ Window {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        toolbarWindow.dropdownOpen = false
                         if (toolbarWindow.backend) {
                             toolbarWindow.backend.saveWindowVisible(false)
                         }
@@ -338,15 +318,12 @@ Window {
                         toolbarWindow.hideRequested()
                     }
                 }
-
-                ToolTip.visible: trayMouse.containsMouse
-                ToolTip.text: qsTr("Minimize to System Tray (ট্রে-তে পাঠান)")
-                ToolTip.delay: 300
             }
 
             // 5. Settings button (gear)
             Rectangle {
                 id: btnSettings
+                z: 10
                 Layout.preferredWidth: 24
                 Layout.preferredHeight: 24
                 radius: 3
@@ -365,22 +342,18 @@ Window {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        toolbarWindow.dropdownOpen = false
                         if (toolbarWindow.backend) {
                             toolbarWindow.backend.requestOpenSettings()
                         }
                         toolbarWindow.openSettingsRequested()
                     }
                 }
-
-                ToolTip.visible: settingsMouse.containsMouse
-                ToolTip.text: qsTr("Settings & Diagnostics (সেটিংস)")
-                ToolTip.delay: 300
             }
 
             // 6. Close button (✕)
             Rectangle {
                 id: btnClose
+                z: 10
                 Layout.preferredWidth: 24
                 Layout.preferredHeight: 24
                 radius: 3
@@ -400,272 +373,11 @@ Window {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        toolbarWindow.dropdownOpen = false
                         if (toolbarWindow.backend) {
                             toolbarWindow.backend.requestExit()
                         } else {
                             toolbarWindow.close()
                         }
-                    }
-                }
-
-                ToolTip.visible: closeMouse.containsMouse
-                ToolTip.text: qsTr("Exit BanglaKey (অ্যাপ বন্ধ করুন)")
-                ToolTip.delay: 300
-            }
-        }
-    }
-
-    // Dropdown Card (Expands downward directly below the mode selector)
-    Rectangle {
-        id: dropdownCard
-        visible: toolbarWindow.dropdownOpen
-        x: modeBtn.x + 8
-        y: 40
-        width: 250
-        height: 160
-        radius: 6
-        color: "#ffffff"
-        border.color: "#cbd5e1"
-        border.width: 1
-
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 4
-            spacing: 2
-
-            // Option 1: Unicode
-            Rectangle {
-                id: rowUni
-                Layout.fillWidth: true
-                Layout.preferredHeight: 36
-                radius: 4
-                property bool isCurrent: toolbarWindow.ipcManager && toolbarWindow.ipcManager.currentModeString === "Unicode"
-                color: itemUniM.containsMouse ? "#f1f5f9" : (rowUni.isCurrent ? "#e0f2fe" : "transparent")
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: 8
-                    anchors.rightMargin: 8
-                    spacing: 8
-
-                    Rectangle {
-                        Layout.preferredWidth: 10
-                        Layout.preferredHeight: 10
-                        radius: 2
-                        color: "#06b6d4"
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 0
-                        Text {
-                            text: "Unicode (ইউনিকোড)"
-                            font.pixelSize: 11
-                            font.bold: true
-                            color: "#0f172a"
-                        }
-                        Text {
-                            text: "Phonetic / Avro layout (Ctrl+V)"
-                            font.pixelSize: 9
-                            color: "#64748b"
-                        }
-                    }
-
-                    Text {
-                        text: "✓"
-                        font.pixelSize: 12
-                        font.bold: true
-                        color: "#0284c7"
-                        visible: rowUni.isCurrent
-                    }
-                }
-
-                MouseArea {
-                    id: itemUniM
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (toolbarWindow.ipcManager) toolbarWindow.ipcManager.setModeFromString("Unicode")
-                        toolbarWindow.dropdownOpen = false
-                    }
-                }
-            }
-
-            // Option 2: Bijoy Unicode
-            Rectangle {
-                id: rowBijoyUni
-                Layout.fillWidth: true
-                Layout.preferredHeight: 36
-                radius: 4
-                property bool isCurrent: toolbarWindow.ipcManager && toolbarWindow.ipcManager.currentModeString === "Bijoy Unicode"
-                color: itemBijoyUniM.containsMouse ? "#f1f5f9" : (rowBijoyUni.isCurrent ? "#dcfce7" : "transparent")
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: 8
-                    anchors.rightMargin: 8
-                    spacing: 8
-
-                    Rectangle {
-                        Layout.preferredWidth: 10
-                        Layout.preferredHeight: 10
-                        radius: 2
-                        color: "#10b981"
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 0
-                        Text {
-                            text: "Bijoy Unicode (বিজয় ইউনিকোড)"
-                            font.pixelSize: 11
-                            font.bold: true
-                            color: "#0f172a"
-                        }
-                        Text {
-                            text: "Bijoy layout with Unicode text"
-                            font.pixelSize: 9
-                            color: "#64748b"
-                        }
-                    }
-
-                    Text {
-                        text: "✓"
-                        font.pixelSize: 12
-                        font.bold: true
-                        color: "#059669"
-                        visible: rowBijoyUni.isCurrent
-                    }
-                }
-
-                MouseArea {
-                    id: itemBijoyUniM
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (toolbarWindow.ipcManager) toolbarWindow.ipcManager.setModeFromString("Bijoy Unicode")
-                        toolbarWindow.dropdownOpen = false
-                    }
-                }
-            }
-
-            // Option 3: Bijoy Classic
-            Rectangle {
-                id: rowClassic
-                Layout.fillWidth: true
-                Layout.preferredHeight: 36
-                radius: 4
-                property bool isCurrent: toolbarWindow.ipcManager && toolbarWindow.ipcManager.currentModeString === "Bijoy Classic"
-                color: itemClassicM.containsMouse ? "#f1f5f9" : (rowClassic.isCurrent ? "#fef3c7" : "transparent")
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: 8
-                    anchors.rightMargin: 8
-                    spacing: 8
-
-                    Rectangle {
-                        Layout.preferredWidth: 10
-                        Layout.preferredHeight: 10
-                        radius: 2
-                        color: "#f59e0b"
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 0
-                        Text {
-                            text: "Bijoy Classic (বিজয় ক্লাসিক)"
-                            font.pixelSize: 11
-                            font.bold: true
-                            color: "#0f172a"
-                        }
-                        Text {
-                            text: "ANSI SutonnyMJ legacy (Ctrl+B)"
-                            font.pixelSize: 9
-                            color: "#64748b"
-                        }
-                    }
-
-                    Text {
-                        text: "✓"
-                        font.pixelSize: 12
-                        font.bold: true
-                        color: "#d97706"
-                        visible: rowClassic.isCurrent
-                    }
-                }
-
-                MouseArea {
-                    id: itemClassicM
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (toolbarWindow.ipcManager) toolbarWindow.ipcManager.setModeFromString("Bijoy Classic")
-                        toolbarWindow.dropdownOpen = false
-                    }
-                }
-            }
-
-            // Option 4: English
-            Rectangle {
-                id: rowEng
-                Layout.fillWidth: true
-                Layout.preferredHeight: 36
-                radius: 4
-                property bool isCurrent: toolbarWindow.ipcManager && toolbarWindow.ipcManager.currentModeString === "English"
-                color: itemEngM.containsMouse ? "#f1f5f9" : (rowEng.isCurrent ? "#ede9fe" : "transparent")
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: 8
-                    anchors.rightMargin: 8
-                    spacing: 8
-
-                    Rectangle {
-                        Layout.preferredWidth: 10
-                        Layout.preferredHeight: 10
-                        radius: 2
-                        color: "#3b82f6"
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 0
-                        Text {
-                            text: "English (ইংরেজি)"
-                            font.pixelSize: 11
-                            font.bold: true
-                            color: "#0f172a"
-                        }
-                        Text {
-                            text: "Standard English keyboard"
-                            font.pixelSize: 9
-                            color: "#64748b"
-                        }
-                    }
-
-                    Text {
-                        text: "✓"
-                        font.pixelSize: 12
-                        font.bold: true
-                        color: "#4f46e5"
-                        visible: rowEng.isCurrent
-                    }
-                }
-
-                MouseArea {
-                    id: itemEngM
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (toolbarWindow.ipcManager) toolbarWindow.ipcManager.setModeFromString("English")
-                        toolbarWindow.dropdownOpen = false
                     }
                 }
             }
