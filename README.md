@@ -15,7 +15,26 @@ BanglaKey provides a unified, first-class Bengali typing experience on Linux, in
 - **Robust Fcitx5 Integration**: Integrates directly into Fedora's modern input framework via `fcitx::InputMethodEngineV2`. Works across Wayland compositors (KWin) and X11 without fake keystroke hacks or clipboard injection.
 - **Decoupled Desktop Settings**: Elegant Qt 6 / QML settings center styled for KDE Plasma 6. The background typing engine is completely independent and never relies on the GUI process remaining open.
 - **Independent Modular Builds**: Engine, Fcitx5 addon, Desktop app, and Test harness can be configured and built independently.
+- **Top-Edge Wayland Toolbar**: Floating indicator with live input mode display, horizontal docking controls, and direct settings access.
+- **Global Toggle Shortcuts**:
+  - `Ctrl + Alt + B`: Toggle Bijoy Classic / English
+  - `Ctrl + Alt + A`: Toggle Bijoy Unicode / English
+  - `Ctrl + Alt + O`: Toggle Avro Phonetic / English
+  - `Ctrl + Alt + V`: Toggle Bijoy Unicode / English
+  - `F12`: Cycle sequentially through all modes
 - **RPM Packaging**: Native RPM spec file tailored for Fedora 44 repository standards.
+
+---
+
+## Shortcuts Reference
+
+| Shortcut | Toggle Action |
+|---|---|
+| **Ctrl + Alt + B** | Toggles **Bijoy Classic** ⇄ **English** |
+| **Ctrl + Alt + A** | Toggles **Bijoy Unicode** ⇄ **English** |
+| **Ctrl + Alt + O** | Toggles **Avro Phonetic** ⇄ **English** |
+| **Ctrl + Alt + V** | Toggles **Bijoy Unicode** ⇄ **English** |
+| **F12** | Cycles sequentially through all available modes |
 
 ---
 
@@ -54,7 +73,9 @@ banglakey-linux/
 ├── desktop/                  # Qt 6 / QML settings & management application
 │   ├── CMakeLists.txt
 │   ├── qml/
-│   │   └── Main.qml          # Modern KDE Plasma-styled UI
+│   │   ├── Main.qml          # Modern KDE Plasma-styled UI
+│   │   ├── Toolbar.qml       # Wayland top-edge floating toolbar
+│   │   └── Splash.qml        # Splash window
 │   └── src/
 │       ├── main.cpp
 │       ├── settings_backend.cpp
@@ -125,7 +146,18 @@ ctest --test-dir build --output-on-failure
   - Modern Qt 6 / QML settings application skeleton.
   - Automated smoke test suite.
   - Fedora RPM spec file.
-- [ ] **Phase 2: Core Engine & Phonetic Processing**
-- [ ] **Phase 3: Bijoy Layout & Juktakkhor Parser**
-- [ ] **Phase 4: Fcitx5 Integration & Wayland Preedit**
-- [ ] **Phase 5: Desktop Settings App & RPM Packaging**
+- [x] **Phase 2: Core Engine & Phonetic Processing**
+  - Avro Phonetic parser, transliteration rules, candidate generation, and dictionary lookup.
+- [x] **Phase 3: Bijoy Layout & Juktakkhor Parser**
+  - Exact Bijoy keyboard layout mappings from physical layout specification.
+  - Classic ASCII (SutonnyMJ compatible) and Unicode modes.
+  - Juktakkhor (conjunct) parsing with link key (`g` / `G`) and vowel reordering.
+- [x] **Phase 4: Fcitx5 Integration & Wayland Preedit**
+  - Fcitx5 input method engine, state tracking, and preedit handling.
+  - Global toggle shortcuts (`Ctrl+Alt+B`, `Ctrl+Alt+A`, `Ctrl+Alt+O`, `Ctrl+Alt+V`, `F12`).
+  - Wayland input-method protocol compliance for GNOME & KDE Plasma 6.
+- [x] **Phase 5: Desktop Settings App & Wayland Floating Toolbar**
+  - Wayland floating toolbar with live layout indicator and horizontal docking controls.
+  - Official brand icon and theme integration (`hicolor` icon specs).
+  - Modern Qt 6 / QML settings management and desktop launcher.
+
