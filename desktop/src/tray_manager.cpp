@@ -6,18 +6,117 @@
 #include <QCursor>
 #include <QApplication>
 #include <QStyle>
+#include <QDBusConnection>
+#include <QDBusConnectionInterface>
+#include <QDBusServiceWatcher>
+#include <QProcess>
+#include <QDir>
+#include <QFile>
+#include <QDebug>
 
 namespace banglakey::desktop {
+
+bool TrayManager::isStatusNotifierWatcherAvailable() {
+    auto bus = QDBusConnection::sessionBus();
+    if (!bus.isConnected() || !bus.interface()) {
+        return false;
+    }
+    return bus.interface()->isServiceRegistered("org.kde.StatusNotifierWatcher");
+}
+
+bool TrayManager::isAppIndicatorExtensionInstalled() {
+    const QString sysPath = QStringLiteral("/usr/share/gnome-shell/extensions/appindicatorsupport@rgcjonas.gmail.com/metadata.json");
+    const QString userPath = QDir::homePath() + QStringLiteral("/.local/share/gnome-shell/extensions/appindicatorsupport@rgcjonas.gmail.com/metadata.json");
+    return QFile::exists(sysPath) || QFile::exists(userPath);
+}
+
+bool TrayManager::isAppIndicatorExtensionEnabled() {
+    if (isStatusNotifierWatcherAvailable()) {
+        return true;
+    }
+    if (!isGnome()) {
+        return false;
+    }
+    QProcess proc;
+    proc.start(QStringLiteral("gsettings"), {QStringLiteral("get"), QStringLiteral("org.gnome.shell"), QStringLiteral("enabled-extensions")});
+    if (proc.waitForFinished(500)) {
+        QString out = QString::fromUtf8(proc.readAllStandardOutput());
+        return out.contains(QStringLiteral("appindicatorsupport@rgcjonas.gmail.com"));
+    }
+    return false;
+}
+
+bool TrayManager::isKdePlasma() {
+    const QString desktop = desktopEnvironment().toUpper();
+    return desktop.contains("KDE") || desktop.contains("PLASMA");
+}
+
+bool TrayManager::isGnome() {
+    const QString desktop = desktopEnvironment().toUpper();
+    return desktop.contains("GNOME");
+}
+
+QString TrayManager::desktopSessionType() {
+    return QString::fromLocal8Bit(qgetenv("XDG_SESSION_TYPE")).toLower();
+}
+
+QString TrayManager::desktopEnvironment() {
+    return QString::fromLocal8Bit(qgetenv("XDG_CURRENT_DESKTOP"));
+}
+
+QString TrayManager::trayStatusSummary() {
+    if (isStatusNotifierWatcherAvailable()) {
+        return QStringLiteral("StatusNotifierWatcher is active on session D-Bus. System tray integration is fully operational.");
+    }
+    if (isKdePlasma()) {
+        return QStringLiteral("KDE Plasma session detected. StatusNotifierItem is natively supported.");
+    }
+    if (isGnome()) {
+        if (!isAppIndicatorExtensionInstalled()) {
+            return QStringLiteral("GNOME Wayland detected without AppIndicator extension. Install 'gnome-shell-extension-appindicator' to enable top-bar tray icons.");
+        }
+        if (!isAppIndicatorExtensionEnabled()) {
+            return QStringLiteral("AppIndicator extension is installed but not active. Log out and back in, or run 'gnome-extensions enable appindicatorsupport@rgcjonas.gmail.com'.");
+        }
+        return QStringLiteral("GNOME Wayland detected. StatusNotifierWatcher service is waiting to be initialized.");
+    }
+    return QStringLiteral("System tray service (StatusNotifierWatcher) is not currently active in this desktop session.");
+}
+
+bool TrayManager::isTrayAvailable() const {
+    return isStatusNotifierWatcherAvailable() || QSystemTrayIcon::isSystemTrayAvailable();
+}
 
 TrayManager::TrayManager(IpcManager* ipcManager, QObject* parent)
     : QObject(parent),
       ipc_manager_(ipcManager),
       tray_icon_(std::make_unique<QSystemTrayIcon>(this)),
       tray_menu_(std::make_unique<QMenu>()) {
+
     buildMenu();
 
     connect(tray_icon_.get(), &QSystemTrayIcon::activated,
             this, &TrayManager::onTrayActivated);
+
+    // Watch for StatusNotifierWatcher appearing/disappearing dynamically
+    service_watcher_ = new QDBusServiceWatcher(
+        QStringLiteral("org.kde.StatusNotifierWatcher"),
+        QDBusConnection::sessionBus(),
+        QDBusServiceWatcher::WatchForRegistration | QDBusServiceWatcher::WatchForUnregistration,
+        this);
+
+    connect(service_watcher_, &QDBusServiceWatcher::serviceRegistered, this, [this](const QString&) {
+        qInfo() << "BanglaKey: StatusNotifierWatcher appeared on session D-Bus. Initializing tray icon.";
+        emit trayAvailabilityChanged(true);
+        if (tray_icon_) {
+            tray_icon_->show();
+        }
+    });
+
+    connect(service_watcher_, &QDBusServiceWatcher::serviceUnregistered, this, [this](const QString&) {
+        qInfo() << "BanglaKey: StatusNotifierWatcher unregistered from session D-Bus.";
+        emit trayAvailabilityChanged(false);
+    });
 
     if (ipc_manager_) {
         connect(ipc_manager_, &IpcManager::modeChanged,
@@ -29,6 +128,11 @@ TrayManager::TrayManager(IpcManager* ipcManager, QObject* parent)
 }
 
 void TrayManager::show() {
+    if (!isTrayAvailable()) {
+        qWarning() << "BanglaKey:" << trayStatusSummary()
+                   << "The floating toolbar remains active and can be restored anytime by running 'banglakey-settings'.";
+        return;
+    }
     if (tray_icon_) {
         tray_icon_->show();
     }
@@ -44,49 +148,68 @@ bool TrayManager::isVisible() const {
     return tray_icon_ && tray_icon_->isVisible();
 }
 
-QIcon TrayManager::createSquareIcon(const QColor& color, bool rounded) {
-    QPixmap pixmap(18, 18);
-    pixmap.fill(Qt::transparent);
+QIcon TrayManager::createModeIcon(AppMode mode) {
+    QIcon icon;
+    const std::vector<int> sizes = {16, 22, 24, 32, 48, 64};
 
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-
-    if (rounded) {
-        painter.setBrush(color);
-        painter.setPen(color.darker(120));
-        painter.drawRoundedRect(2, 2, 14, 14, 3, 3);
-    } else {
-        painter.fillRect(2, 2, 14, 14, color);
+    QString label;
+    QString bgColor;
+    switch (mode) {
+        case AppMode::English:
+            label = QStringLiteral("EN");
+            bgColor = QStringLiteral("#37474f"); // Dark graphite
+            break;
+        case AppMode::BijoyUnicode:
+            label = QString::fromUtf8("বি-ইউ");
+            bgColor = QStringLiteral("#006a4e"); // National emerald green
+            break;
+        case AppMode::BijoyClassic:
+            label = QString::fromUtf8("বিজয়");
+            bgColor = QStringLiteral("#1565c0"); // Deep royal blue
+            break;
+        case AppMode::AvroPhonetic:
+            label = QString::fromUtf8("অভ্র");
+            bgColor = QStringLiteral("#6a1b9a"); // Rich purple
+            break;
     }
 
-    return QIcon(pixmap);
+    for (int sz : sizes) {
+        QPixmap pixmap(sz, sz);
+        pixmap.fill(Qt::transparent);
+
+        QPainter painter(&pixmap);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setRenderHint(QPainter::TextAntialiasing);
+
+        // Rounded badge container with subtle border
+        int radius = std::max(2, sz * 4 / 22);
+        painter.setBrush(QColor(bgColor));
+        painter.setPen(QPen(QColor(0, 0, 0, 80), 1.0));
+        painter.drawRoundedRect(1, 1, sz - 2, sz - 2, radius, radius);
+
+        // Font calculation with Bengali font fallback
+        QFont font(QStringLiteral("Noto Sans Bengali"));
+        font.setStyleHint(QFont::SansSerif);
+        font.setBold(true);
+
+        int len = static_cast<int>(label.length());
+        int px = sz * 11 / 22;
+        if (len > 3) px = sz * 8 / 22;
+        else if (len > 2) px = sz * 9 / 22;
+
+        font.setPixelSize(std::max(7, px));
+        painter.setFont(font);
+        painter.setPen(Qt::white);
+        painter.drawText(pixmap.rect(), Qt::AlignCenter, label);
+        painter.end();
+
+        icon.addPixmap(pixmap);
+    }
+    return icon;
 }
 
 QIcon TrayManager::createAppIcon() {
-    QPixmap pixmap(18, 18);
-    pixmap.fill(Qt::transparent);
-
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-
-    // Green circular background
-    painter.setBrush(QColor("#006a4e"));
-    painter.setPen(Qt::NoPen);
-    painter.drawEllipse(1, 1, 16, 16);
-
-    // Red inner circle
-    painter.setBrush(QColor("#f42a41"));
-    painter.drawEllipse(4, 4, 10, 10);
-
-    // Bengali "ক"
-    painter.setPen(Qt::white);
-    QFont f = painter.font();
-    f.setPixelSize(10);
-    f.setBold(true);
-    painter.setFont(f);
-    painter.drawText(pixmap.rect(), Qt::AlignCenter, "ক");
-
-    return QIcon(pixmap);
+    return createModeIcon(ipc_manager_ ? ipc_manager_->currentMode() : AppMode::BijoyUnicode);
 }
 
 QIcon TrayManager::createRestoreIcon() {
@@ -122,54 +245,10 @@ QIcon TrayManager::createCloseIcon() {
     return QIcon(pixmap);
 }
 
-QIcon TrayManager::createTrayIcon(AppMode mode) {
-    QPixmap pixmap(24, 24);
-    pixmap.fill(Qt::transparent);
-
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-
-    // Background tile based on mode
-    QColor bgColor;
-    QString label;
-    switch (mode) {
-        case AppMode::English:
-            bgColor = QColor("#1e3c72");
-            label = "E";
-            break;
-        case AppMode::BijoyClassic:
-            bgColor = QColor("#0288d1");
-            label = "বি";
-            break;
-        case AppMode::BijoyUnicode:
-            bgColor = QColor("#7b1fa2");
-            label = "বু";
-            break;
-        case AppMode::Unicode:
-            bgColor = QColor("#2e7d32");
-            label = "ইউ";
-            break;
-    }
-
-    painter.setBrush(bgColor);
-    painter.setPen(QColor(255, 255, 255, 180));
-    painter.drawRoundedRect(1, 1, 22, 22, 5, 5);
-
-    // Text label
-    painter.setPen(Qt::white);
-    QFont f = painter.font();
-    f.setPixelSize(mode == AppMode::Unicode ? 10 : 12);
-    f.setBold(true);
-    painter.setFont(f);
-    painter.drawText(pixmap.rect(), Qt::AlignCenter, label);
-
-    return QIcon(pixmap);
-}
-
 void TrayManager::buildMenu() {
     tray_menu_->clear();
 
-    // Menu styling: compact, light background, dark text, clean thin border matching reference
+    // Menu styling: native clean light appearance with clear checkmark indicators
     tray_menu_->setStyleSheet(
         "QMenu {"
         "  background-color: #ffffff;"
@@ -179,7 +258,7 @@ void TrayManager::buildMenu() {
         "  font-size: 13px;"
         "}"
         "QMenu::item {"
-        "  padding: 4px 24px 4px 8px;"
+        "  padding: 4px 28px 4px 10px;"
         "  border-radius: 3px;"
         "}"
         "QMenu::item:selected {"
@@ -193,35 +272,43 @@ void TrayManager::buildMenu() {
         "}"
     );
 
-    // 1. Unicode
-    action_unicode_ = tray_menu_->addAction(createSquareIcon(QColor("#2e7d32")), tr("Unicode"));
-    action_unicode_->setCheckable(true);
-    connect(action_unicode_, &QAction::triggered, this, [this]() {
-        if (ipc_manager_) ipc_manager_->setMode(AppMode::Unicode);
-    });
+    mode_group_ = new QActionGroup(this);
+    mode_group_->setExclusive(true);
 
-    // 2. Bijoy Unicode
-    action_bijoy_unicode_ = tray_menu_->addAction(createSquareIcon(QColor("#7b1fa2")), tr("Bijoy Unicode"));
+    // 1. Bijoy Unicode
+    action_bijoy_unicode_ = tray_menu_->addAction(tr("Bijoy Unicode"));
     action_bijoy_unicode_->setCheckable(true);
+    mode_group_->addAction(action_bijoy_unicode_);
     connect(action_bijoy_unicode_, &QAction::triggered, this, [this]() {
         if (ipc_manager_) ipc_manager_->setMode(AppMode::BijoyUnicode);
     });
 
-    // 3. Bijoy Classic
-    action_bijoy_classic_ = tray_menu_->addAction(createSquareIcon(QColor("#0288d1")), tr("Bijoy Classic"));
+    // 2. Bijoy Classic
+    action_bijoy_classic_ = tray_menu_->addAction(tr("Bijoy Classic"));
     action_bijoy_classic_->setCheckable(true);
+    mode_group_->addAction(action_bijoy_classic_);
     connect(action_bijoy_classic_, &QAction::triggered, this, [this]() {
         if (ipc_manager_) ipc_manager_->setMode(AppMode::BijoyClassic);
     });
 
+    // 3. Avro Phonetic
+    action_avro_phonetic_ = tray_menu_->addAction(tr("Avro Phonetic"));
+    action_avro_phonetic_->setCheckable(true);
+    mode_group_->addAction(action_avro_phonetic_);
+    action_unicode_ = action_avro_phonetic_;
+    connect(action_avro_phonetic_, &QAction::triggered, this, [this]() {
+        if (ipc_manager_) ipc_manager_->setMode(AppMode::AvroPhonetic);
+    });
+
     // 4. English
-    action_english_ = tray_menu_->addAction(createAppIcon(), tr("English"));
+    action_english_ = tray_menu_->addAction(tr("English"));
     action_english_->setCheckable(true);
+    mode_group_->addAction(action_english_);
     connect(action_english_, &QAction::triggered, this, [this]() {
         if (ipc_manager_) ipc_manager_->setMode(AppMode::English);
     });
 
-    // 5. Horizontal Separator
+    // 5. Separator
     tray_menu_->addSeparator();
 
     // 6. Show as Topbar
@@ -230,7 +317,13 @@ void TrayManager::buildMenu() {
         emit showToolbarRequested();
     });
 
-    // 7. Close
+    // 7. Settings
+    action_settings_ = tray_menu_->addAction(tr("Settings..."));
+    connect(action_settings_, &QAction::triggered, this, [this]() {
+        emit openSettingsRequested();
+    });
+
+    // 8. Close
     action_close_ = tray_menu_->addAction(createCloseIcon(), tr("Close"));
     connect(action_close_, &QAction::triggered, this, [this]() {
         emit exitRequested();
@@ -243,24 +336,34 @@ void TrayManager::updateChecks() {
     if (!ipc_manager_) return;
 
     AppMode mode = ipc_manager_->currentMode();
-    if (action_unicode_) action_unicode_->setChecked(mode == AppMode::Unicode);
-    if (action_bijoy_unicode_) action_bijoy_unicode_->setChecked(mode == AppMode::BijoyUnicode);
-    if (action_bijoy_classic_) action_bijoy_classic_->setChecked(mode == AppMode::BijoyClassic);
-    if (action_english_) action_english_->setChecked(mode == AppMode::English);
+    switch (mode) {
+        case AppMode::BijoyUnicode:
+            if (action_bijoy_unicode_) action_bijoy_unicode_->setChecked(true);
+            break;
+        case AppMode::BijoyClassic:
+            if (action_bijoy_classic_) action_bijoy_classic_->setChecked(true);
+            break;
+        case AppMode::AvroPhonetic:
+            if (action_avro_phonetic_) action_avro_phonetic_->setChecked(true);
+            break;
+        case AppMode::English:
+            if (action_english_) action_english_->setChecked(true);
+            break;
+    }
 }
 
 void TrayManager::updateMode(AppMode mode) {
     updateChecks();
 
-    // Update tray icon image and tooltip
-    tray_icon_->setIcon(createTrayIcon(mode));
-    tray_icon_->setToolTip(tr("BanglaKey: %1").arg(IpcManager::modeToString(mode)));
+    // Update tray icon image with active mode badge and tooltip
+    tray_icon_->setIcon(createModeIcon(mode));
+    tray_icon_->setToolTip(tr("BanglaKey (%1)").arg(IpcManager::modeToString(mode)));
 }
 
 void TrayManager::onTrayActivated(QSystemTrayIcon::ActivationReason reason) {
     switch (reason) {
         case QSystemTrayIcon::Trigger:
-            // Left click: cycle through modes
+            // Single left click: cycle typing mode
             if (ipc_manager_) {
                 ipc_manager_->cycleMode();
             }

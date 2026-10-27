@@ -88,6 +88,18 @@ size_t codepointCount(std::string_view utf8) {
     return count;
 }
 
+std::string toHexCodepoints(std::string_view utf8) {
+    auto cps = toCodepoints(utf8);
+    std::string out;
+    char buf[16];
+    for (size_t i = 0; i < cps.size(); ++i) {
+        if (i > 0) out += " ";
+        snprintf(buf, sizeof(buf), "U+%04X", static_cast<unsigned int>(cps[i]));
+        out += buf;
+    }
+    return out;
+}
+
 char32_t combineTwoPartVowel(char32_t pre, char32_t post) noexcept {
     if (pre == CP_SIGN_E && post == CP_SIGN_AA) {
         return CP_SIGN_O; // ে + া -> ো (U+09CB)

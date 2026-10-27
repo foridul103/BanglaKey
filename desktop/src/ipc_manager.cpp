@@ -35,12 +35,12 @@ QString IpcManager::modeToString(AppMode mode) {
     switch (mode) {
         case AppMode::English:
             return "English";
-        case AppMode::BijoyClassic:
-            return "Bijoy Classic";
         case AppMode::BijoyUnicode:
             return "Bijoy Unicode";
-        case AppMode::Unicode:
-            return "Unicode";
+        case AppMode::BijoyClassic:
+            return "Bijoy Classic";
+        case AppMode::AvroPhonetic:
+            return "Avro Phonetic";
     }
     return "English";
 }
@@ -48,16 +48,21 @@ QString IpcManager::modeToString(AppMode mode) {
 AppMode IpcManager::stringToMode(const QString& str) {
     QString trimmed = str.trimmed();
     if (trimmed.compare("Bijoy Classic", Qt::CaseInsensitive) == 0 ||
-        trimmed.compare("BijoyClassic", Qt::CaseInsensitive) == 0) {
+        trimmed.compare("BijoyClassic", Qt::CaseInsensitive) == 0 ||
+        trimmed.compare("Classic", Qt::CaseInsensitive) == 0) {
         return AppMode::BijoyClassic;
     }
     if (trimmed.compare("Bijoy Unicode", Qt::CaseInsensitive) == 0 ||
-        trimmed.compare("BijoyUnicode", Qt::CaseInsensitive) == 0) {
+        trimmed.compare("BijoyUnicode", Qt::CaseInsensitive) == 0 ||
+        trimmed.compare("Unicode", Qt::CaseInsensitive) == 0 ||
+        trimmed.compare("UniJoy", Qt::CaseInsensitive) == 0) {
         return AppMode::BijoyUnicode;
     }
-    if (trimmed.compare("Unicode", Qt::CaseInsensitive) == 0 ||
-        trimmed.compare("Phonetic", Qt::CaseInsensitive) == 0) {
-        return AppMode::Unicode;
+    if (trimmed.compare("Avro Phonetic", Qt::CaseInsensitive) == 0 ||
+        trimmed.compare("AvroPhonetic", Qt::CaseInsensitive) == 0 ||
+        trimmed.compare("Phonetic", Qt::CaseInsensitive) == 0 ||
+        trimmed.compare("Avro", Qt::CaseInsensitive) == 0) {
+        return AppMode::AvroPhonetic;
     }
     return AppMode::English;
 }
@@ -66,12 +71,12 @@ QString IpcManager::modeToDisplayName(AppMode mode) {
     switch (mode) {
         case AppMode::English:
             return "English";
-        case AppMode::BijoyClassic:
-            return "বিজয় ক্লাসিক";
         case AppMode::BijoyUnicode:
             return "বিজয় ইউনিকোড";
-        case AppMode::Unicode:
-            return "ইউনিকোড";
+        case AppMode::BijoyClassic:
+            return "বিজয় ক্লাসিক";
+        case AppMode::AvroPhonetic:
+            return "অভ্রো ফোনেটিক";
     }
     return "English";
 }
@@ -105,18 +110,19 @@ IpcManager::~IpcManager() {
 }
 
 void IpcManager::cycleMode() {
+    // Cycle: English -> Bijoy Unicode -> Bijoy Classic -> Avro Phonetic -> English
     AppMode nextMode = AppMode::English;
     switch (current_mode_) {
         case AppMode::English:
-            nextMode = AppMode::Unicode;
-            break;
-        case AppMode::Unicode:
             nextMode = AppMode::BijoyUnicode;
             break;
         case AppMode::BijoyUnicode:
             nextMode = AppMode::BijoyClassic;
             break;
         case AppMode::BijoyClassic:
+            nextMode = AppMode::AvroPhonetic;
+            break;
+        case AppMode::AvroPhonetic:
             nextMode = AppMode::English;
             break;
     }
@@ -137,6 +143,7 @@ void IpcManager::setMode(AppMode mode) {
     settings.sync();
 
     emit modeChanged(mode);
+    emit currentModeChanged();
 }
 
 void IpcManager::setModeFromString(const QString& modeStr) {
@@ -181,6 +188,7 @@ void IpcManager::onFileChanged(const QString& path) {
         settings.sync();
 
         emit modeChanged(newMode);
+        emit currentModeChanged();
     }
 }
 

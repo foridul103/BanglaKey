@@ -11,13 +11,18 @@ namespace banglakey::desktop {
 
 enum class AppMode {
     English,
-    BijoyClassic,
     BijoyUnicode,
-    Unicode
+    BijoyClassic,
+    AvroPhonetic,
+    // Compatibility alias
+    Unicode = BijoyUnicode
 };
 
 class IpcManager : public QObject {
     Q_OBJECT
+
+    Q_PROPERTY(QString currentModeString READ currentModeString NOTIFY currentModeChanged)
+    Q_PROPERTY(QString currentDisplayName READ currentDisplayName NOTIFY currentModeChanged)
 
 public:
     explicit IpcManager(QObject* parent = nullptr);
@@ -34,11 +39,11 @@ public:
     [[nodiscard]] QString currentDisplayName() const { return modeToDisplayName(current_mode_); }
 
     // Cycle through modes: English -> Unicode -> BijoyUnicode -> BijoyClassic -> English
-    void cycleMode();
+    Q_INVOKABLE void cycleMode();
 
     // Set mode explicitly
     void setMode(AppMode mode);
-    void setModeFromString(const QString& modeStr);
+    Q_INVOKABLE void setModeFromString(const QString& modeStr);
 
     // Single instance initialization
     // Returns true if this is the primary instance.
@@ -54,6 +59,7 @@ public:
 
 signals:
     void modeChanged(AppMode newMode);
+    void currentModeChanged();
     void showToolbarRequested();
 
 private slots:

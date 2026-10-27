@@ -7,8 +7,12 @@
 namespace banglakey {
 
 enum class TypingMode {
-    Bijoy,
-    Phonetic
+    BijoyUnicode = 0,
+    BijoyClassic = 1,
+    AvroPhonetic = 2,
+    // Backwards-compatible aliases
+    Bijoy = 0,
+    Phonetic = 2
 };
 
 enum class Modifier : uint32_t {

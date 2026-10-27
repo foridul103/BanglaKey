@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <banglakey/engine.hpp>
+#include <banglakey/unicode.hpp>
 
 using namespace banglakey;
 
@@ -215,4 +216,59 @@ TEST_F(PhoneticModeTest, MixedBengaliEnglishInput) {
 
     auto a3 = pressSpecialKey(0x0020 /* Space */);
     EXPECT_EQ(a3.commit_text, "Linux ");
+}
+
+TEST_F(PhoneticModeTest, ExactVowelSignCodepoints) {
+    // 1. কি: 'k' + 'i' + Space -> "কি " (U+0995 U+09BF U+0020)
+    typeWord("ki");
+    auto s1 = pressSpecialKey(0x0020 /* Space */);
+    EXPECT_EQ(s1.type, EngineActionType::Commit);
+    EXPECT_EQ(s1.commit_text, "কি ");
+    auto ki_cps = unicode::toCodepoints(s1.commit_text);
+    ASSERT_EQ(ki_cps.size(), 3u);
+    EXPECT_EQ(ki_cps[0], 0x0995u); // ক
+    EXPECT_EQ(ki_cps[1], 0x09BFu); // ি
+    EXPECT_EQ(ki_cps[2], 0x0020u); // Space
+
+    // 2. কে: 'k' + 'e' + Space -> "কে " (U+0995 U+09C7 U+0020)
+    typeWord("ke");
+    auto s2 = pressSpecialKey(0x0020 /* Space */);
+    EXPECT_EQ(s2.type, EngineActionType::Commit);
+    EXPECT_EQ(s2.commit_text, "কে ");
+    auto ke_cps = unicode::toCodepoints(s2.commit_text);
+    ASSERT_EQ(ke_cps.size(), 3u);
+    EXPECT_EQ(ke_cps[0], 0x0995u); // ক
+    EXPECT_EQ(ke_cps[1], 0x09C7u); // ে
+    EXPECT_EQ(ke_cps[2], 0x0020u); // Space
+
+    // 3. কী: 'k' + 'I' + Space -> "কী " (U+0995 U+09C0 U+0020)
+    typeWord("kI");
+    auto s3 = pressSpecialKey(0x0020 /* Space */);
+    EXPECT_EQ(s3.type, EngineActionType::Commit);
+    EXPECT_EQ(s3.commit_text, "কী ");
+    auto kii_cps = unicode::toCodepoints(s3.commit_text);
+    ASSERT_EQ(kii_cps.size(), 3u);
+    EXPECT_EQ(kii_cps[0], 0x0995u); // ক
+    EXPECT_EQ(kii_cps[1], 0x09C0u); // ী
+    EXPECT_EQ(kii_cps[2], 0x0020u); // Space
+
+    // 4. কু: 'k' + 'u' + Space -> "কু " (U+0995 U+09C1 U+0020)
+    typeWord("ku");
+    auto s4 = pressSpecialKey(0x0020 /* Space */);
+    EXPECT_EQ(s4.type, EngineActionType::Commit);
+    EXPECT_EQ(s4.commit_text, "কু ");
+    auto ku_cps = unicode::toCodepoints(s4.commit_text);
+    ASSERT_EQ(ku_cps.size(), 3u);
+    EXPECT_EQ(ku_cps[0], 0x0995u); // ক
+    EXPECT_EQ(ku_cps[1], 0x09C1u); // ু
+    EXPECT_EQ(ku_cps[2], 0x0020u); // Space
+
+    // 5. Backspace during composition: "ki" -> backspace -> "ক" -> backspace -> Reset
+    typeWord("ki");
+    auto b1 = pressSpecialKey(0xff08 /* Backspace */);
+    EXPECT_EQ(b1.type, EngineActionType::Preedit);
+    EXPECT_EQ(b1.preedit_text, "ক");
+    auto b2 = pressSpecialKey(0xff08 /* Backspace */);
+    EXPECT_EQ(b2.type, EngineActionType::Reset);
+    EXPECT_TRUE(engine->state().isEmpty());
 }

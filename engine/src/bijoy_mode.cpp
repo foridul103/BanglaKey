@@ -1,6 +1,7 @@
 #include <banglakey/bijoy_mode.hpp>
 #include <banglakey/unicode.hpp>
 #include "../rules/bijoy_map.hpp"
+#include "../rules/bijoy_classic_map.hpp"
 
 namespace banglakey {
 
@@ -28,6 +29,7 @@ EngineAction BijoyModeHandler::processKeyEvent(const KeyEvent& event, Compositio
 
     // Handle Backspace
     if (event.keysym == 0xff08 /* XK_BackSpace */ || event.keycode == 22) {
+        state.clearPrecedingConsonant();
         if (state.pendingHasant()) {
             state.setPendingHasant(false);
             state.setPreeditText("");
@@ -43,6 +45,7 @@ EngineAction BijoyModeHandler::processKeyEvent(const KeyEvent& event, Compositio
 
     // Handle Escape: cancel composition
     if (event.keysym == 0xff1b /* XK_Escape */) {
+        state.clearPrecedingConsonant();
         if (state.pendingHasant() || !state.pendingPreVowel().empty()) {
             reset(state);
             return EngineAction::makeReset();
@@ -52,6 +55,7 @@ EngineAction BijoyModeHandler::processKeyEvent(const KeyEvent& event, Compositio
 
     // Handle Enter / Return
     if (event.keysym == 0xff0d /* XK_Return */ || event.keysym == 0xff8d /* XK_KP_Enter */) {
+        state.clearPrecedingConsonant();
         if (!state.pendingPreVowel().empty()) {
             std::string commit = state.pendingPreVowel();
             reset(state);
@@ -67,6 +71,7 @@ EngineAction BijoyModeHandler::processKeyEvent(const KeyEvent& event, Compositio
 
     // Handle Space
     if (event.keysym == 0x0020 /* XK_space */) {
+        state.clearPrecedingConsonant();
         if (!state.pendingPreVowel().empty()) {
             std::string commit = state.pendingPreVowel() + " ";
             reset(state);
@@ -94,6 +99,44 @@ EngineAction BijoyModeHandler::processKeyEvent(const KeyEvent& event, Compositio
 
     bool shifted = hasModifier(event.modifiers, Modifier::Shift);
 
+    // Bijoy Classic mode: traditional SutonnyMJ ANSI mapping without Unicode pre-vowel reordering
+    if (mode_ == TypingMode::BijoyClassic) {
+        if (state.pendingHasant()) {
+            state.setPendingHasant(false);
+            state.setPreeditText("");
+
+            std::string_view linkedVowel = rules::getBijoyClassicLinkedVowel(c, shifted);
+            if (!linkedVowel.empty()) {
+                return EngineAction::makeCommit(std::string(linkedVowel));
+            }
+
+            if (c == 'g' && !shifted) {
+                return EngineAction::makeCommit("g");
+            }
+
+            std::string_view classicMapped = shifted ? rules::getBijoyClassicShifted(c)
+                                                     : rules::getBijoyClassicNormal(c);
+            if (!classicMapped.empty()) {
+                return EngineAction::makeCommit(std::string(classicMapped));
+            }
+            return EngineAction::makeForward();
+        }
+
+        if (c == 'g' && !shifted) {
+            state.setPendingHasant(true);
+            state.setPreeditText("g");
+            return EngineAction::makePreedit("g");
+        }
+
+        std::string_view classicMapped = shifted ? rules::getBijoyClassicShifted(c)
+                                                 : rules::getBijoyClassicNormal(c);
+        if (!classicMapped.empty()) {
+            return EngineAction::makeCommit(std::string(classicMapped));
+        }
+        return EngineAction::makeForward();
+    }
+
+    // Bijoy Unicode mode: standard Bijoy layout with Unicode composition & pre-vowel reordering
     // Case 1: Pending Hasanta from 'g' (Link key)
     if (state.pendingHasant()) {
         state.setPendingHasant(false);
@@ -135,6 +178,7 @@ EngineAction BijoyModeHandler::processKeyEvent(const KeyEvent& event, Compositio
                 commit.append(state.pendingPreVowel());
                 state.clearPendingPreVowel();
             }
+            state.setPrecedingConsonant(std::string(mapped_view));
             state.setPreeditText("");
             return EngineAction::makeCommit(std::move(commit));
         }
@@ -171,8 +215,8 @@ EngineAction BijoyModeHandler::processKeyEvent(const KeyEvent& event, Compositio
         return EngineAction::makeCommit("র্");
     }
 
-    // C. Pre-vowel sign reordering: E-kar "ে" or OI-kar "ৈ"
-    if (mapped == "ে" || mapped == "ৈ") {
+    // C. Pre-vowel sign reordering: Hrosho-I-kar "ি", E-kar "ে", or OI-kar "ৈ"
+    if (mapped == "ি" || mapped == "ে" || mapped == "ৈ") {
         if (config.auto_reorder_bijoy_vowels) {
             if (!state.pendingPreVowel().empty()) {
                 std::string prev = state.pendingPreVowel();
@@ -193,13 +237,26 @@ EngineAction BijoyModeHandler::processKeyEvent(const KeyEvent& event, Compositio
         state.setPreeditText("ো");
         return EngineAction::makePreedit("ো");
     }
+    if (state.pendingPreVowel() == "ে" && mapped == "ৌ") {
+        state.setPendingPreVowel("ৌ");
+        state.setPreeditText("ৌ");
+        return EngineAction::makePreedit("ৌ");
+    }
 
-    // E. Resolving pending pre-vowel (e.g. "ে" + Consonant -> Consonant + "ে")
+    // E. Resolving pending pre-vowel (e.g. "ি" / "ে" / "ৈ" + Consonant -> Consonant + pre-vowel)
     if (!state.pendingPreVowel().empty()) {
-        std::string commit = mapped + state.pendingPreVowel();
-        state.clearPendingPreVowel();
-        state.setPreeditText("");
-        return EngineAction::makeCommit(std::move(commit));
+        auto cps = unicode::toCodepoints(mapped);
+        if (!cps.empty() && unicode::isConsonant(cps[0])) {
+            std::string commit = mapped + state.pendingPreVowel();
+            state.clearPendingPreVowel();
+            state.setPreeditText("");
+            return EngineAction::makeCommit(std::move(commit));
+        } else {
+            std::string commit = state.pendingPreVowel() + mapped;
+            state.clearPendingPreVowel();
+            state.setPreeditText("");
+            return EngineAction::makeCommit(std::move(commit));
+        }
     }
 
     // F. Direct character commit

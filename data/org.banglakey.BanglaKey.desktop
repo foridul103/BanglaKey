@@ -1,0 +1,15 @@
+[Desktop Entry]
+Name=BanglaKey
+Name[bn]=বাংলাকি
+GenericName=Bengali Input Method Settings
+GenericName[bn]=বাংলা ইনপুট মেথড সেটিংস
+Comment=Native Bengali input method and floating toolbar for Linux (Bijoy & Phonetic)
+Comment[bn]=লিনাক্সের জন্য নেটিভ বাংলা ইনপুট মেথড (বিজয় ও ফোনেটিক)
+Exec=banglakey-settings
+Icon=banglakey
+Terminal=false
+Type=Application
+Categories=Utility;Settings;DesktopSettings;Qt;
+Keywords=bengali;bangla;keyboard;input;fcitx;bijoy;avro;
+StartupNotify=true
+StartupWMClass=banglakey-settings

@@ -80,7 +80,8 @@ private:
     EngineConfig config_{};
     mutable std::unordered_map<ContextId, Session> sessions_{};
 
-    std::unique_ptr<ModeHandler> bijoy_handler_{};
+    std::unique_ptr<ModeHandler> bijoy_unicode_handler_{};
+    std::unique_ptr<ModeHandler> bijoy_classic_handler_{};
     std::unique_ptr<ModeHandler> phonetic_handler_{};
 };
 

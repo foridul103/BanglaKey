@@ -21,6 +21,14 @@ int main(int argc, char* argv[]) {
     app.setApplicationName("BanglaKey");
     app.setApplicationVersion("0.1.0");
 
+    // Load and set application icon
+    QIcon appIcon = QIcon::fromTheme(QStringLiteral("banglakey"),
+        QIcon(QStringLiteral(":/qt/qml/banglakey/desktop/assets/banglakey.png")));
+    if (appIcon.isNull()) {
+        appIcon = QIcon(QStringLiteral(BANGLAKEY_QML_SOURCE_DIR "/assets/banglakey.png"));
+    }
+    app.setWindowIcon(appIcon);
+
     // Important: Do not exit when toolbar window is closed/hidden, as app lives in system tray
     app.setQuitOnLastWindowClosed(false);
 
@@ -69,6 +77,7 @@ int main(int argc, char* argv[]) {
             settingsWindow = qobject_cast<QQuickWindow*>(obj);
         }
         if (settingsWindow) {
+            settingsWindow->setIcon(appIcon);
             settingsWindow->show();
             settingsWindow->raise();
             settingsWindow->requestActivate();
@@ -86,26 +95,71 @@ int main(int argc, char* argv[]) {
             toolbarWindow = qobject_cast<QQuickWindow*>(obj);
 
             if (toolbarWindow) {
+                toolbarWindow->setIcon(appIcon);
                 toolbarWindow->setProperty("backend", QVariant::fromValue(backend.get()));
                 toolbarWindow->setProperty("ipcManager", QVariant::fromValue(ipcManager.get()));
 
-                // Restore saved coordinates
-                int savedX = backend->windowX();
-                int savedY = backend->windowY();
+                // Configure tool window flags
+                toolbarWindow->setFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
 
+                // Restore saved coordinates attached to the top edge of active monitor
                 QScreen* primaryScreen = QGuiApplication::primaryScreen();
-                if (primaryScreen) {
-                    QRect screenGeom = primaryScreen->availableGeometry();
-                    if (savedX <= 0 || savedX > screenGeom.width() - 100) {
-                        savedX = screenGeom.x() + (screenGeom.width() - toolbarWindow->width()) / 2;
-                    }
-                    if (savedY <= 0 || savedY > screenGeom.height() - 50) {
-                        savedY = screenGeom.y() + 40;
+                QRect availGeom = primaryScreen ? primaryScreen->availableGeometry() : QRect(0, 0, 1920, 1080);
+                int winWidth = toolbarWindow->width() > 0 ? toolbarWindow->width() : 480;
+                int winHeight = toolbarWindow->height() > 0 ? toolbarWindow->height() : 38;
+
+                int savedX = backend->windowX();
+                int savedY = availGeom.y();
+
+                // If unset or out of screen bounds, center horizontally by default
+                if (savedX < availGeom.x() || savedX > availGeom.x() + availGeom.width() - winWidth) {
+                    int dock = backend->dockPosition();
+                    if (dock == 0) {
+                        savedX = availGeom.x();
+                    } else if (dock == 2) {
+                        savedX = availGeom.x() + availGeom.width() - winWidth;
+                    } else {
+                        savedX = availGeom.x() + (availGeom.width() - winWidth) / 2;
                     }
                 }
 
+                toolbarWindow->setGeometry(savedX, savedY, winWidth, winHeight);
                 toolbarWindow->setX(savedX);
                 toolbarWindow->setY(savedY);
+
+                qInfo() << "BanglaKey: Toolbar positioned at top edge: x=" << savedX << " y=" << savedY
+                        << " w=" << winWidth << " h=" << winHeight
+                        << " screen=" << (primaryScreen ? primaryScreen->name() : "default");
+
+                // Dynamically re-clamp when monitor resolution or geometry changes
+                if (primaryScreen) {
+                    QObject::connect(primaryScreen, &QScreen::availableGeometryChanged, toolbarWindow,
+                                     [toolbarWindow, backend = backend.get()](const QRect& newGeom) {
+                        int currentX = toolbarWindow->x();
+                        int clampedX = std::max(newGeom.x(), std::min(currentX, newGeom.x() + newGeom.width() - toolbarWindow->width()));
+                        toolbarWindow->setGeometry(clampedX, newGeom.y(), toolbarWindow->width(), toolbarWindow->height());
+                        toolbarWindow->setX(clampedX);
+                        toolbarWindow->setY(newGeom.y());
+                        backend->saveWindowPosition(clampedX, newGeom.y());
+                        qInfo() << "BanglaKey: Screen geometry changed. Toolbar re-clamped to x=" << clampedX << " y=" << newGeom.y();
+                    });
+                }
+
+                // Automatically persist X changes
+                QObject::connect(toolbarWindow, &QQuickWindow::xChanged, toolbarWindow, [toolbarWindow, backend = backend.get()]() {
+                    backend->saveWindowPosition(toolbarWindow->x(), toolbarWindow->y());
+                });
+
+                // Ensure Y strictly remains anchored to top edge
+                QObject::connect(toolbarWindow, &QQuickWindow::yChanged, toolbarWindow, [toolbarWindow]() {
+                    QScreen* s = toolbarWindow->screen();
+                    if (s) {
+                        int topY = s->availableGeometry().y();
+                        if (toolbarWindow->y() != topY) {
+                            toolbarWindow->setY(topY);
+                        }
+                    }
+                });
             } else {
                 qWarning() << "BanglaKey: Failed to create Toolbar window:" << toolbarComp.errors();
             }
@@ -120,8 +174,25 @@ int main(int argc, char* argv[]) {
     };
 
     // Connect Tray, Backend, and IPC signals to Toolbar & Settings
+    QObject::connect(trayManager.get(), &banglakey::desktop::TrayManager::trayAvailabilityChanged,
+                     backend.get(), &banglakey::desktop::SettingsBackend::trayAvailabilityChanged);
+
     QObject::connect(backend.get(), &banglakey::desktop::SettingsBackend::showToolbarRequested,
                      &app, showToolbarWindow);
+
+    QObject::connect(backend.get(), &banglakey::desktop::SettingsBackend::hideToolbarRequested,
+                     &app, [&]() {
+        if (trayManager->isTrayAvailable()) {
+            trayManager->show();
+            if (toolbarWindow) toolbarWindow->hide();
+            backend->saveWindowVisible(false);
+        } else {
+            qWarning() << "BanglaKey: Toolbar remains visible because system tray is unavailable on this desktop:"
+                       << banglakey::desktop::TrayManager::trayStatusSummary();
+            if (toolbarWindow) toolbarWindow->show();
+            backend->saveWindowVisible(true);
+        }
+    });
 
     QObject::connect(backend.get(), &banglakey::desktop::SettingsBackend::openSettingsRequested,
                      &app, showSettingsWindow);
@@ -151,30 +222,8 @@ int main(int argc, char* argv[]) {
         // Keep hidden in tray
         qInfo() << "BanglaKey: Started minimized in system tray.";
     } else {
-        // 5. Show Startup Splash Screen, then transition to Toolbar
-        QQmlComponent splashComp(&engine, QUrl(QStringLiteral("qrc:/qt/qml/banglakey/desktop/qml/Splash.qml")));
-        if (splashComp.isError()) {
-            splashComp.loadUrl(QUrl::fromLocalFile(QStringLiteral(BANGLAKEY_QML_SOURCE_DIR "/qml/Splash.qml")));
-        }
-        QObject* splashObj = splashComp.create(engine.rootContext());
-        auto* splashWindow = qobject_cast<QQuickWindow*>(splashObj);
-
-        if (splashWindow) {
-            splashWindow->setProperty("backend", QVariant::fromValue(backend.get()));
-            splashWindow->show();
-            splashWindow->raise();
-            splashWindow->requestActivate();
-        } else {
-            qWarning() << "BanglaKey: Failed to create Splash window, opening toolbar directly:" << splashComp.errors();
-            showToolbarWindow();
-        }
-
-        // Safety fallback: Ensure toolbar displays after splash even if signals fail
-        QTimer::singleShot(2200, &app, [&]() {
-            if (!toolbarWindow || !toolbarWindow->isVisible()) {
-                showToolbarWindow();
-            }
-        });
+        // Immediately show the compact floating toolbar attached to the top edge
+        showToolbarWindow();
     }
 
     return app.exec();

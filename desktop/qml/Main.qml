@@ -99,21 +99,13 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 12
 
-                    Rectangle {
+                    Image {
                         Layout.preferredWidth: 42
                         Layout.preferredHeight: 42
-                        radius: 10
-                        color: Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.18)
-                        border.color: root.accentColor
-                        border.width: 1
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "ক"
-                            font.pixelSize: 22
-                            font.bold: true
-                            color: root.accentColor
-                        }
+                        source: "qrc:/qt/qml/banglakey/desktop/assets/banglakey-emblem.png"
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true
+                        mipmap: true
                     }
 
                     ColumnLayout {
@@ -474,24 +466,42 @@ ApplicationWindow {
                                     color: root.textPrimary
                                 }
 
-                                RowLayout {
+                                GridLayout {
                                     Layout.fillWidth: true
-                                    spacing: 12
+                                    columns: 2
+                                    rowSpacing: 8
+                                    columnSpacing: 10
 
                                     Button {
                                         Layout.fillWidth: true
-                                        Layout.preferredHeight: 46
-                                        text: qsTr("🔤 Phonetic (English to Bengali)")
-                                        highlighted: root.backend && root.backend.currentMode === "Phonetic"
-                                        onClicked: if (root.backend) root.backend.currentMode = "Phonetic"
+                                        Layout.preferredHeight: 44
+                                        text: qsTr("⌨️ Bijoy Unicode (বিজয় ইউনিকোড)")
+                                        highlighted: root.backend && root.backend.currentMode === "Bijoy Unicode"
+                                        onClicked: if (root.backend) root.backend.currentMode = "Bijoy Unicode"
                                     }
 
                                     Button {
                                         Layout.fillWidth: true
-                                        Layout.preferredHeight: 46
-                                        text: qsTr("⌨️ Bijoy-Compatible Layout")
-                                        highlighted: root.backend && root.backend.currentMode === "Bijoy"
-                                        onClicked: if (root.backend) root.backend.currentMode = "Bijoy"
+                                        Layout.preferredHeight: 44
+                                        text: qsTr("📜 Bijoy Classic (বিজয় ক্লাসিক)")
+                                        highlighted: root.backend && root.backend.currentMode === "Bijoy Classic"
+                                        onClicked: if (root.backend) root.backend.currentMode = "Bijoy Classic"
+                                    }
+
+                                    Button {
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 44
+                                        text: qsTr("🔤 Avro Phonetic (অভ্রো ফোনেটিক)")
+                                        highlighted: root.backend && root.backend.currentMode === "Avro Phonetic"
+                                        onClicked: if (root.backend) root.backend.currentMode = "Avro Phonetic"
+                                    }
+
+                                    Button {
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 44
+                                        text: qsTr("🌐 English (ইংরেজি)")
+                                        highlighted: root.backend && root.backend.currentMode === "English"
+                                        onClicked: if (root.backend) root.backend.currentMode = "English"
                                     }
                                 }
 
@@ -560,69 +570,27 @@ ApplicationWindow {
                         spacing: 20
 
                         // Mode Comparison
-                        RowLayout {
+                        GridLayout {
                             Layout.fillWidth: true
-                            spacing: 16
+                            columns: 2
+                            rowSpacing: 14
+                            columnSpacing: 14
 
-                            // Phonetic Card
+                            // 1. Bijoy Unicode Card
                             Rectangle {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 110
+                                Layout.preferredHeight: 120
                                 radius: 12
-                                color: (root.backend && root.backend.currentMode === "Phonetic")
+                                color: (root.backend && root.backend.currentMode === "Bijoy Unicode")
                                     ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.15)
                                     : root.cardBg
-                                border.color: (root.backend && root.backend.currentMode === "Phonetic") ? root.accentColor : root.cardBorder
-                                border.width: (root.backend && root.backend.currentMode === "Phonetic") ? 2 : 1
+                                border.color: (root.backend && root.backend.currentMode === "Bijoy Unicode") ? root.accentColor : root.cardBorder
+                                border.width: (root.backend && root.backend.currentMode === "Bijoy Unicode") ? 2 : 1
 
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (root.backend) root.backend.currentMode = "Phonetic"
-                                }
-
-                                ColumnLayout {
-                                    anchors.fill: parent
-                                    anchors.margins: 14
-                                    spacing: 4
-
-                                    RowLayout {
-                                        Text { text: "🔤"; font.pixelSize: 18 }
-                                        Text { text: qsTr("Phonetic Mode"); font.bold: true; font.pixelSize: 14; color: root.textPrimary }
-                                        Item { Layout.fillWidth: true }
-                                        Text {
-                                            visible: root.backend && root.backend.currentMode === "Phonetic"
-                                            text: qsTr("SAVED DEFAULT")
-                                            font.pixelSize: 9
-                                            font.bold: true
-                                            color: root.accentColor
-                                        }
-                                    }
-                                    Text {
-                                        text: qsTr("Type intuitively using English keys (e.g., 'amar' → 'আমার', 'bangla' → 'বাংলা').")
-                                        font.pixelSize: 11
-                                        color: root.textSecondary
-                                        wrapMode: Text.WordWrap
-                                        Layout.fillWidth: true
-                                    }
-                                }
-                            }
-
-                            // Bijoy Card
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 110
-                                radius: 12
-                                color: (root.backend && root.backend.currentMode === "Bijoy")
-                                    ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.15)
-                                    : root.cardBg
-                                border.color: (root.backend && root.backend.currentMode === "Bijoy") ? root.accentColor : root.cardBorder
-                                border.width: (root.backend && root.backend.currentMode === "Bijoy") ? 2 : 1
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (root.backend) root.backend.currentMode = "Bijoy"
+                                    onClicked: if (root.backend) root.backend.currentMode = "Bijoy Unicode"
                                 }
 
                                 ColumnLayout {
@@ -632,18 +600,150 @@ ApplicationWindow {
 
                                     RowLayout {
                                         Text { text: "⌨️"; font.pixelSize: 18 }
-                                        Text { text: qsTr("Bijoy Compatible"); font.bold: true; font.pixelSize: 14; color: root.textPrimary }
+                                        Text { text: qsTr("Bijoy Unicode"); font.bold: true; font.pixelSize: 14; color: root.textPrimary }
                                         Item { Layout.fillWidth: true }
                                         Text {
-                                            visible: root.backend && root.backend.currentMode === "Bijoy"
-                                            text: qsTr("SAVED DEFAULT")
+                                            visible: root.backend && root.backend.currentMode === "Bijoy Unicode"
+                                            text: qsTr("ACTIVE")
                                             font.pixelSize: 9
                                             font.bold: true
                                             color: root.accentColor
                                         }
                                     }
                                     Text {
-                                        text: qsTr("Standard layout mapping with 'g' as conjunct link key and pre-vowel reordering.")
+                                        text: qsTr("Bijoy layout emitting Unicode Bengali. Pre-kar reordering (c+j → কে), conjuncts (j+g+j → ক্ক). Not phonetic.")
+                                        font.pixelSize: 11
+                                        color: root.textSecondary
+                                        wrapMode: Text.WordWrap
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+
+                            // 2. Bijoy Classic Card
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 120
+                                radius: 12
+                                color: (root.backend && root.backend.currentMode === "Bijoy Classic")
+                                    ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.15)
+                                    : root.cardBg
+                                border.color: (root.backend && root.backend.currentMode === "Bijoy Classic") ? root.accentColor : root.cardBorder
+                                border.width: (root.backend && root.backend.currentMode === "Bijoy Classic") ? 2 : 1
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: if (root.backend) root.backend.currentMode = "Bijoy Classic"
+                                }
+
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 14
+                                    spacing: 4
+
+                                    RowLayout {
+                                        Text { text: "📜"; font.pixelSize: 18 }
+                                        Text { text: qsTr("Bijoy Classic"); font.bold: true; font.pixelSize: 14; color: root.textPrimary }
+                                        Item { Layout.fillWidth: true }
+                                        Text {
+                                            visible: root.backend && root.backend.currentMode === "Bijoy Classic"
+                                            text: qsTr("ACTIVE")
+                                            font.pixelSize: 9
+                                            font.bold: true
+                                            color: root.accentColor
+                                        }
+                                    }
+                                    Text {
+                                        text: qsTr("Traditional Bijoy layout for legacy SutonnyMJ font workflows. Direct ANSI character emission without Unicode reordering.")
+                                        font.pixelSize: 11
+                                        color: root.textSecondary
+                                        wrapMode: Text.WordWrap
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+
+                            // 3. Avro Phonetic Card
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 120
+                                radius: 12
+                                color: (root.backend && root.backend.currentMode === "Avro Phonetic")
+                                    ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.15)
+                                    : root.cardBg
+                                border.color: (root.backend && root.backend.currentMode === "Avro Phonetic") ? root.accentColor : root.cardBorder
+                                border.width: (root.backend && root.backend.currentMode === "Avro Phonetic") ? 2 : 1
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: if (root.backend) root.backend.currentMode = "Avro Phonetic"
+                                }
+
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 14
+                                    spacing: 4
+
+                                    RowLayout {
+                                        Text { text: "🔤"; font.pixelSize: 18 }
+                                        Text { text: qsTr("Avro Phonetic"); font.bold: true; font.pixelSize: 14; color: root.textPrimary }
+                                        Item { Layout.fillWidth: true }
+                                        Text {
+                                            visible: root.backend && root.backend.currentMode === "Avro Phonetic"
+                                            text: qsTr("ACTIVE")
+                                            font.pixelSize: 9
+                                            font.bold: true
+                                            color: root.accentColor
+                                        }
+                                    }
+                                    Text {
+                                        text: qsTr("Intuitive English-to-Bengali transliteration (e.g., 'amar' + Space → 'আমার', 'bangla' → 'বাংলা').")
+                                        font.pixelSize: 11
+                                        color: root.textSecondary
+                                        wrapMode: Text.WordWrap
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+
+                            // 4. English Card
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 120
+                                radius: 12
+                                color: (root.backend && root.backend.currentMode === "English")
+                                    ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.15)
+                                    : root.cardBg
+                                border.color: (root.backend && root.backend.currentMode === "English") ? root.accentColor : root.cardBorder
+                                border.width: (root.backend && root.backend.currentMode === "English") ? 2 : 1
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: if (root.backend) root.backend.currentMode = "English"
+                                }
+
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 14
+                                    spacing: 4
+
+                                    RowLayout {
+                                        Text { text: "🌐"; font.pixelSize: 18 }
+                                        Text { text: qsTr("English Passthrough"); font.bold: true; font.pixelSize: 14; color: root.textPrimary }
+                                        Item { Layout.fillWidth: true }
+                                        Text {
+                                            visible: root.backend && root.backend.currentMode === "English"
+                                            text: qsTr("ACTIVE")
+                                            font.pixelSize: 9
+                                            font.bold: true
+                                            color: root.accentColor
+                                        }
+                                    }
+                                    Text {
+                                        text: qsTr("Standard English keyboard input without conversion. Keystrokes pass through untouched.")
                                         font.pixelSize: 11
                                         color: root.textSecondary
                                         wrapMode: Text.WordWrap
@@ -1044,6 +1144,44 @@ ApplicationWindow {
                                         checked: root.backend ? root.backend.autostart : false
                                         onToggled: {
                                             if (root.backend) root.backend.autostart = checked;
+                                        }
+                                    }
+                                }
+
+                                // Global Shortcuts & Toolbar Card
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 165
+                                    radius: 10
+                                    color: root.surfaceBg
+                                    border.color: root.cardBorder
+                                    border.width: 1
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 14
+                                        spacing: 6
+
+                                        Text {
+                                            text: qsTr("⌨️ Direct Global Shortcuts & Semantics")
+                                            font.bold: true
+                                            font.pixelSize: 13
+                                            color: root.textPrimary
+                                        }
+
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: qsTr("• <b>Ctrl+Alt+B</b>: Select Bijoy Classic (SutonnyMJ legacy layout)<br>" +
+                                                       "• <b>Ctrl+Alt+A</b>: Select Bijoy Unicode (Bijoy layout emitting Unicode Bengali)<br>" +
+                                                       "• <b>Ctrl+Alt+O</b>: Select Avro Phonetic (Phonetic transliteration)<br>" +
+                                                       "• <b>Ctrl+Alt+V</b>: Toggle between active Bengali mode and English<br>" +
+                                                       "• <b>F12</b>: Cycle English → Bijoy Unicode → Bijoy Classic → Avro Phonetic → English<br>" +
+                                                       "• <i>Standard clipboard Paste (Ctrl+V) is always preserved and never hijacked.</i>")
+                                            font.pixelSize: 11
+                                            lineHeight: 1.3
+                                            textFormat: Text.RichText
+                                            color: root.textSecondary
+                                            wrapMode: Text.WordWrap
                                         }
                                     }
                                 }

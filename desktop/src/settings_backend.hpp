@@ -28,6 +28,10 @@ class SettingsBackend : public QObject {
     Q_PROPERTY(QString configFilePath READ configFilePath CONSTANT)
     Q_PROPERTY(bool configFileValid READ configFileValid NOTIFY statusChanged)
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
+    Q_PROPERTY(bool isTrayAvailable READ isTrayAvailable NOTIFY trayAvailabilityChanged)
+    Q_PROPERTY(QString trayStatusMessage READ trayStatusMessage NOTIFY trayAvailabilityChanged)
+    Q_PROPERTY(bool appIndicatorInstalled READ appIndicatorInstalled CONSTANT)
+    Q_PROPERTY(bool appIndicatorEnabled READ appIndicatorEnabled NOTIFY trayAvailabilityChanged)
 
     // Interactive Typing Sandbox
     Q_PROPERTY(QString sandboxCommit READ sandboxCommit NOTIFY sandboxCommitChanged)
@@ -61,6 +65,10 @@ public:
     [[nodiscard]] QString configFilePath() const;
     [[nodiscard]] bool configFileValid() const;
     [[nodiscard]] QString statusMessage() const;
+    [[nodiscard]] bool isTrayAvailable() const;
+    [[nodiscard]] QString trayStatusMessage() const;
+    [[nodiscard]] bool appIndicatorInstalled() const;
+    [[nodiscard]] bool appIndicatorEnabled() const;
 
     // Sandbox
     [[nodiscard]] QString sandboxCommit() const;
@@ -80,6 +88,9 @@ public:
     Q_INVOKABLE void saveWindowPosition(int x, int y);
     Q_INVOKABLE int windowX() const;
     Q_INVOKABLE int windowY() const;
+    Q_INVOKABLE int dockPosition() const;
+    Q_INVOKABLE void saveDockPosition(int dock);
+    Q_INVOKABLE bool isWayland() const;
     Q_INVOKABLE void saveWindowVisible(bool visible);
     Q_INVOKABLE bool windowVisible() const;
 
@@ -111,6 +122,7 @@ signals:
     void hideToolbarRequested();
     void openSettingsRequested();
     void exitRequested();
+    void trayAvailabilityChanged();
 
 private:
     void updateEngineMode();

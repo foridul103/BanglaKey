@@ -1,7 +1,7 @@
-find_package(Qt6 6.5 QUIET COMPONENTS Core Gui Qml Quick QuickControls2 Widgets Network)
+find_package(Qt6 6.5 QUIET COMPONENTS Core Gui Qml Quick QuickControls2 Widgets Network DBus)
 
 if(NOT Qt6_FOUND)
-    message(WARNING "Qt 6 (Core, Gui, Qml, Quick, Widgets, Network) development packages not found! Ensure qt6-qtbase-devel and qt6-qtdeclarative-devel are installed to build the desktop settings application.")
+    message(WARNING "Qt 6 (Core, Gui, Qml, Quick, Widgets, Network, DBus) development packages not found! Ensure qt6-qtbase-devel and qt6-qtdeclarative-devel are installed to build the desktop settings application.")
     return()
 endif()
 
@@ -32,6 +32,10 @@ qt_add_qml_module(banglakey-settings
         qml/Main.qml
         qml/Splash.qml
         qml/Toolbar.qml
+    RESOURCES
+        assets/banglakey.png
+        assets/banglakey-emblem.png
+        assets/banglakey-full.png
 )
 
 target_compile_definitions(banglakey-settings
@@ -48,6 +52,7 @@ target_link_libraries(banglakey-settings
         Qt6::QuickControls2
         Qt6::Widgets
         Qt6::Network
+        Qt6::DBus
         BanglaKey::Engine
 )
 
@@ -60,4 +65,12 @@ if(BANGLAKEY_INSTALL)
     install(TARGETS banglakey-settings
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
+    install(FILES "${CMAKE_SOURCE_DIR}/data/org.banglakey.BanglaKey.desktop"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+    )
+    foreach(s 16 24 32 48 64 128 256 512)
+        install(FILES "${CMAKE_SOURCE_DIR}/assets/icons/hicolor/${s}x${s}/apps/banglakey.png"
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${s}x${s}/apps
+        )
+    endforeach()
 endif()

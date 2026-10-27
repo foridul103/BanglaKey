@@ -27,7 +27,8 @@ TEST(UnicodeTest, CharacterClassification) {
     EXPECT_TRUE(isVowelSign(CP_SIGN_O));
     EXPECT_FALSE(isVowelSign(CP_LETTER_A));
 
-    // Pre-vowel signs (E-kar, OI-kar)
+    // Pre-vowel signs (I-kar, E-kar, OI-kar)
+    EXPECT_TRUE(isPreVowelSign(CP_SIGN_I));
     EXPECT_TRUE(isPreVowelSign(CP_SIGN_E));
     EXPECT_TRUE(isPreVowelSign(CP_SIGN_AI));
     EXPECT_FALSE(isPreVowelSign(CP_SIGN_AA));

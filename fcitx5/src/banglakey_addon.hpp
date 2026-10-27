@@ -74,19 +74,25 @@ public:
     [[nodiscard]] fcitx::Instance* instance() const noexcept { return instance_; }
     [[nodiscard]] banglakey::TypingEngine* engine() const noexcept { return engine_.get(); }
     [[nodiscard]] const std::string& activeMode() const noexcept { return active_mode_; }
+    [[nodiscard]] const std::string& lastBengaliMode() const noexcept { return last_bengali_mode_; }
 
     void setSpecificMode(fcitx::InputContext* ic, banglakey::ContextId ctxId, const std::string& targetMode, fcitx::KeyEvent& keyEvent);
-    void syncActiveModeFromDisk(banglakey::ContextId ctxId);
+    void toggleModeWithEnglish(fcitx::InputContext* ic, banglakey::ContextId ctxId, const std::string& assignedBengaliMode, fcitx::KeyEvent& keyEvent);
+    bool processShortcut(fcitx::KeyEvent& keyEvent);
+    void syncActiveModeFromDisk(fcitx::InputContext* ic, banglakey::ContextId ctxId);
     void writeActiveModeToDisk(const std::string& targetMode);
 
 private:
     [[nodiscard]] bool isModeSwitchKey(const fcitx::KeyEvent& keyEvent, banglakey::Modifier mod) const noexcept;
     void handleModeSwitch(fcitx::InputContext* ic, banglakey::ContextId ctxId, fcitx::KeyEvent& keyEvent);
 
-    std::string active_mode_{"Unicode"};
+    std::string active_mode_{"Bijoy Unicode"};
+    std::string last_bengali_mode_{"Bijoy Unicode"};
+    uint32_t last_shortcut_id_{0};
     fcitx::Instance* instance_{nullptr};
     std::unique_ptr<banglakey::TypingEngine> engine_{nullptr};
     fcitx::FactoryFor<BanglaKeyContextProperty> propFactory_;
+    std::unique_ptr<fcitx::HandlerTableEntry<fcitx::EventHandler>> eventWatcher_{nullptr};
 };
 
 class BanglaKeyAddonFactory : public fcitx::AddonFactory {

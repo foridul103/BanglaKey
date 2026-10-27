@@ -1,4 +1,5 @@
 #include "settings_backend.hpp"
+#include "tray_manager.hpp"
 #include <banglakey/banglakey.hpp>
 
 #include <QSettings>
@@ -8,6 +9,7 @@
 #include <QFileInfo>
 #include <QProcess>
 #include <QTextStream>
+#include <QGuiApplication>
 #include <QMenu>
 #include <QAction>
 #include <QDebug>
@@ -17,7 +19,7 @@ namespace banglakey::desktop {
 SettingsBackend::SettingsBackend(QString customConfigPath, QObject* parent)
     : QObject(parent),
       custom_config_path_(std::move(customConfigPath)) {
-    engine_ = banglakey::TypingEngine::create(banglakey::TypingMode::Phonetic);
+    engine_ = banglakey::TypingEngine::create(banglakey::TypingMode::BijoyUnicode);
     loadConfig();
     checkFcitx5Status();
 }
@@ -30,7 +32,9 @@ QString SettingsBackend::configFilePath() const {
 }
 
 bool SettingsBackend::validateMode(const QString& mode) const {
-    return (mode.compare("Phonetic", Qt::CaseInsensitive) == 0 ||
+    return (mode.compare("Avro Phonetic", Qt::CaseInsensitive) == 0 ||
+            mode.compare("Avro", Qt::CaseInsensitive) == 0 ||
+            mode.compare("Phonetic", Qt::CaseInsensitive) == 0 ||
             mode.compare("Bijoy", Qt::CaseInsensitive) == 0 ||
             mode.compare("Bijoy Classic", Qt::CaseInsensitive) == 0 ||
             mode.compare("Bijoy Unicode", Qt::CaseInsensitive) == 0 ||
@@ -68,18 +72,20 @@ void SettingsBackend::setCurrentMode(const QString& mode) {
     }
 
     // Normalize casing
-    if (mode.compare("Bijoy", Qt::CaseInsensitive) == 0) {
-        current_mode_ = "Bijoy";
-    } else if (mode.compare("Bijoy Classic", Qt::CaseInsensitive) == 0) {
+    if (mode.compare("Bijoy Classic", Qt::CaseInsensitive) == 0) {
         current_mode_ = "Bijoy Classic";
-    } else if (mode.compare("Bijoy Unicode", Qt::CaseInsensitive) == 0) {
+    } else if (mode.compare("Bijoy Unicode", Qt::CaseInsensitive) == 0 ||
+               mode.compare("Bijoy", Qt::CaseInsensitive) == 0 ||
+               mode.compare("Unicode", Qt::CaseInsensitive) == 0) {
         current_mode_ = "Bijoy Unicode";
-    } else if (mode.compare("Unicode", Qt::CaseInsensitive) == 0) {
-        current_mode_ = "Unicode";
+    } else if (mode.compare("Avro Phonetic", Qt::CaseInsensitive) == 0 ||
+               mode.compare("Avro", Qt::CaseInsensitive) == 0 ||
+               mode.compare("Phonetic", Qt::CaseInsensitive) == 0) {
+        current_mode_ = "Avro Phonetic";
     } else if (mode.compare("English", Qt::CaseInsensitive) == 0) {
         current_mode_ = "English";
     } else {
-        current_mode_ = "Phonetic";
+        current_mode_ = "Bijoy Unicode";
     }
     updateEngineMode();
 
@@ -185,6 +191,22 @@ QString SettingsBackend::statusMessage() const {
     return status_message_;
 }
 
+bool SettingsBackend::isTrayAvailable() const {
+    return TrayManager::isStatusNotifierWatcherAvailable() || QSystemTrayIcon::isSystemTrayAvailable();
+}
+
+QString SettingsBackend::trayStatusMessage() const {
+    return TrayManager::trayStatusSummary();
+}
+
+bool SettingsBackend::appIndicatorInstalled() const {
+    return TrayManager::isAppIndicatorExtensionInstalled();
+}
+
+bool SettingsBackend::appIndicatorEnabled() const {
+    return TrayManager::isAppIndicatorExtensionEnabled();
+}
+
 QString SettingsBackend::sandboxCommit() const {
     return sandbox_commit_;
 }
@@ -198,10 +220,12 @@ void SettingsBackend::updateEngineMode() {
         return;
     }
 
-    if (current_mode_ == "Bijoy" || current_mode_ == "Bijoy Classic" || current_mode_ == "Bijoy Unicode") {
-        engine_->setMode(banglakey::TypingMode::Bijoy);
-    } else {
-        engine_->setMode(banglakey::TypingMode::Phonetic);
+    if (current_mode_ == "Bijoy Classic") {
+        engine_->setMode(banglakey::TypingMode::BijoyClassic);
+    } else if (current_mode_ == "Bijoy Unicode") {
+        engine_->setMode(banglakey::TypingMode::BijoyUnicode);
+    } else if (current_mode_ == "Avro Phonetic") {
+        engine_->setMode(banglakey::TypingMode::AvroPhonetic);
     }
 }
 
@@ -216,13 +240,30 @@ void SettingsBackend::saveWindowPosition(int x, int y) {
 int SettingsBackend::windowX() const {
     const QString path = configFilePath();
     QSettings settings(path, QSettings::IniFormat);
-    return settings.value("Toolbar/x", 200).toInt();
+    return settings.value("Toolbar/x", -1).toInt(); // -1 indicates unset / first launch
 }
 
 int SettingsBackend::windowY() const {
     const QString path = configFilePath();
     QSettings settings(path, QSettings::IniFormat);
-    return settings.value("Toolbar/y", 10).toInt();
+    return settings.value("Toolbar/y", 0).toInt(); // 0 indicates top edge
+}
+
+int SettingsBackend::dockPosition() const {
+    const QString path = configFilePath();
+    QSettings settings(path, QSettings::IniFormat);
+    return settings.value("Toolbar/dock", 1).toInt(); // Default 1: Center
+}
+
+void SettingsBackend::saveDockPosition(int dock) {
+    const QString path = configFilePath();
+    QSettings settings(path, QSettings::IniFormat);
+    settings.setValue("Toolbar/dock", dock);
+    settings.sync();
+}
+
+bool SettingsBackend::isWayland() const {
+    return QGuiApplication::platformName().contains("wayland", Qt::CaseInsensitive);
 }
 
 void SettingsBackend::saveWindowVisible(bool visible) {
@@ -348,23 +389,25 @@ bool SettingsBackend::loadConfig() {
 
     config_file_valid_ = (settings.status() == QSettings::NoError);
 
-    QString savedMode = settings.value("General/TypingMode", "Phonetic").toString();
+    QString savedMode = settings.value("General/TypingMode", "Bijoy Unicode").toString();
     if (validateMode(savedMode)) {
-        if (savedMode.compare("Bijoy", Qt::CaseInsensitive) == 0) {
-            current_mode_ = "Bijoy";
-        } else if (savedMode.compare("Bijoy Classic", Qt::CaseInsensitive) == 0) {
+        if (savedMode.compare("Bijoy Classic", Qt::CaseInsensitive) == 0) {
             current_mode_ = "Bijoy Classic";
-        } else if (savedMode.compare("Bijoy Unicode", Qt::CaseInsensitive) == 0) {
+        } else if (savedMode.compare("Bijoy Unicode", Qt::CaseInsensitive) == 0 ||
+                   savedMode.compare("Bijoy", Qt::CaseInsensitive) == 0 ||
+                   savedMode.compare("Unicode", Qt::CaseInsensitive) == 0) {
             current_mode_ = "Bijoy Unicode";
-        } else if (savedMode.compare("Unicode", Qt::CaseInsensitive) == 0) {
-            current_mode_ = "Unicode";
+        } else if (savedMode.compare("Avro Phonetic", Qt::CaseInsensitive) == 0 ||
+                   savedMode.compare("Avro", Qt::CaseInsensitive) == 0 ||
+                   savedMode.compare("Phonetic", Qt::CaseInsensitive) == 0) {
+            current_mode_ = "Avro Phonetic";
         } else if (savedMode.compare("English", Qt::CaseInsensitive) == 0) {
             current_mode_ = "English";
         } else {
-            current_mode_ = "Phonetic";
+            current_mode_ = "Bijoy Unicode";
         }
     } else {
-        current_mode_ = "Phonetic";
+        current_mode_ = "Bijoy Unicode";
     }
 
     QString savedApp = settings.value("General/Appearance", "system").toString();
@@ -433,7 +476,7 @@ bool SettingsBackend::saveConfig() {
                     << "Type=Application\n"
                     << "Name=BanglaKey Settings\n"
                     << "Exec=banglakey-settings --minimized\n"
-                    << "Icon=input-keyboard\n"
+                    << "Icon=banglakey\n"
                     << "Comment=BanglaKey Input Method Settings\n"
                     << "Terminal=false\n";
             }
@@ -456,7 +499,7 @@ bool SettingsBackend::saveConfig() {
 }
 
 void SettingsBackend::restoreDefaults() {
-    current_mode_ = "Phonetic";
+    current_mode_ = "Bijoy Unicode";
     appearance_ = "system";
     interface_language_ = "en";
     mode_switch_shortcut_ = "F12";
@@ -499,6 +542,12 @@ QVariantMap SettingsBackend::getBijoyKeymap() const {
     map["b"] = "ন";
     map["n"] = "স";
     map["m"] = "ম";
+    map["q"] = "ঙ";
+    map["t"] = "ট";
+    map["a"] = "ৃ";
+    map["z"] = "্র";
+    map["x"] = "ও";
+    map["\\"] = "ৎ";
 
     // Shifted keys
     map["J"] = "খ";
@@ -522,7 +571,14 @@ QVariantMap SettingsBackend::getBijoyKeymap() const {
     map["B"] = "ণ";
     map["N"] = "ষ";
     map["M"] = "শ";
-    map["A"] = "ৃ";
+    map["A"] = "র্";
+    map["Q"] = "ং";
+    map["T"] = "ঠ";
+    map["Z"] = "্য";
+    map["X"] = "ৌ";
+    map["|"] = "ঃ";
+    map["$"] = "৳";
+    map["&"] = "ঁ";
     return map;
 }
 
@@ -609,21 +665,21 @@ void SettingsBackend::openLayoutMenu(int globalX, int globalY) {
         "}"
     );
 
-    auto* actUnicode = menu.addAction(QString::fromUtf8("Unicode (ইউনিকোড)"));
+    auto* actEnglish = menu.addAction(QString::fromUtf8("English (ইংরেজি)"));
     auto* actBijoyUni = menu.addAction(QString::fromUtf8("Bijoy Unicode (বিজয় ইউনিকোড)"));
     auto* actClassic = menu.addAction(QString::fromUtf8("Bijoy Classic (বিজয় ক্লাসিক)"));
-    auto* actEnglish = menu.addAction(QString::fromUtf8("English (ইংরেজি)"));
+    auto* actAvro = menu.addAction(QString::fromUtf8("Avro Phonetic (অভ্রো ফোনেটিক)"));
 
-    actUnicode->setCheckable(true);
+    actEnglish->setCheckable(true);
     actBijoyUni->setCheckable(true);
     actClassic->setCheckable(true);
-    actEnglish->setCheckable(true);
+    actAvro->setCheckable(true);
 
     QString cur = currentMode();
-    actUnicode->setChecked(cur == "Unicode");
+    actEnglish->setChecked(cur == "English");
     actBijoyUni->setChecked(cur == "Bijoy Unicode");
     actClassic->setChecked(cur == "Bijoy Classic");
-    actEnglish->setChecked(cur == "English");
+    actAvro->setChecked(cur == "Avro Phonetic");
 
     menu.addSeparator();
     auto* actTray = menu.addAction(QString::fromUtf8("Minimize to System Tray (ট্রে-তে পাঠান)"));
@@ -632,14 +688,14 @@ void SettingsBackend::openLayoutMenu(int globalX, int globalY) {
     QAction* selected = menu.exec(QPoint(globalX, globalY));
     if (!selected) return;
 
-    if (selected == actUnicode) {
-        setCurrentMode("Unicode");
+    if (selected == actEnglish) {
+        setCurrentMode("English");
     } else if (selected == actBijoyUni) {
         setCurrentMode("Bijoy Unicode");
     } else if (selected == actClassic) {
         setCurrentMode("Bijoy Classic");
-    } else if (selected == actEnglish) {
-        setCurrentMode("English");
+    } else if (selected == actAvro) {
+        setCurrentMode("Avro Phonetic");
     } else if (selected == actTray) {
         emit hideToolbarRequested();
     } else if (selected == actClose) {

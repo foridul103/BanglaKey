@@ -72,30 +72,13 @@ Window {
                 Layout.fillWidth: true
                 spacing: 14
 
-                // Stylized Logo Emblem
-                Rectangle {
-                    Layout.preferredWidth: 48
-                    Layout.preferredHeight: 48
-                    radius: 12
-                    color: "#006a4e"
-                    border.color: "#22c55e"
-                    border.width: 1.5
-
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: 32
-                        height: 32
-                        radius: 16
-                        color: "#f42a41"
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "ক"
-                            color: "#ffffff"
-                            font.pixelSize: 20
-                            font.bold: true
-                        }
-                    }
+                Image {
+                    Layout.preferredWidth: 54
+                    Layout.preferredHeight: 54
+                    source: "qrc:/qt/qml/banglakey/desktop/assets/banglakey-emblem.png"
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    mipmap: true
                 }
 
                 ColumnLayout {

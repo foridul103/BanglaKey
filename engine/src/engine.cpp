@@ -15,7 +15,8 @@ std::unique_ptr<TypingEngine> TypingEngine::create(const EngineConfig& config) {
 }
 
 DefaultTypingEngine::DefaultTypingEngine(TypingMode initial_mode)
-    : bijoy_handler_(std::make_unique<BijoyModeHandler>()),
+    : bijoy_unicode_handler_(std::make_unique<BijoyUnicodeHandler>()),
+      bijoy_classic_handler_(std::make_unique<BijoyClassicHandler>()),
       phonetic_handler_(std::make_unique<PhoneticModeHandler>()) {
     config_.default_mode = initial_mode;
     getOrCreateSession(DEFAULT_CONTEXT_ID);
@@ -23,7 +24,8 @@ DefaultTypingEngine::DefaultTypingEngine(TypingMode initial_mode)
 
 DefaultTypingEngine::DefaultTypingEngine(EngineConfig config)
     : config_(std::move(config)),
-      bijoy_handler_(std::make_unique<BijoyModeHandler>()),
+      bijoy_unicode_handler_(std::make_unique<BijoyUnicodeHandler>()),
+      bijoy_classic_handler_(std::make_unique<BijoyClassicHandler>()),
       phonetic_handler_(std::make_unique<PhoneticModeHandler>()) {
     getOrCreateSession(DEFAULT_CONTEXT_ID);
 }
@@ -61,9 +63,6 @@ EngineAction DefaultTypingEngine::switchMode(TypingMode mode) {
 
 EngineAction DefaultTypingEngine::switchMode(ContextId ctx, TypingMode mode) {
     auto& session = getOrCreateSession(ctx);
-    if (session.mode == mode) {
-        return EngineAction{};
-    }
 
     std::string commit;
     if (!session.state.isEmpty()) {
@@ -77,6 +76,14 @@ EngineAction DefaultTypingEngine::switchMode(ContextId ctx, TypingMode mode) {
         if (commit.empty() && session.state.pendingHasant()) {
             commit = "্";
         }
+    }
+
+    if (session.mode == mode) {
+        if (!commit.empty()) {
+            session.state.reset();
+            return EngineAction::makeCommit(std::move(commit));
+        }
+        return EngineAction{};
     }
 
     session.state.reset();
@@ -182,9 +189,11 @@ DefaultTypingEngine::Session& DefaultTypingEngine::getOrCreateSession(ContextId 
 
 ModeHandler* DefaultTypingEngine::getHandler(TypingMode mode) noexcept {
     switch (mode) {
-        case TypingMode::Bijoy:
-            return bijoy_handler_.get();
-        case TypingMode::Phonetic:
+        case TypingMode::BijoyUnicode:
+            return bijoy_unicode_handler_.get();
+        case TypingMode::BijoyClassic:
+            return bijoy_classic_handler_.get();
+        case TypingMode::AvroPhonetic:
             return phonetic_handler_.get();
     }
     return nullptr;

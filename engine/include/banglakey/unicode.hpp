@@ -63,7 +63,7 @@ inline constexpr char32_t CP_ZWNJ              = 0x200C;
 }
 
 [[nodiscard]] constexpr bool isPreVowelSign(char32_t cp) noexcept {
-    return cp == CP_SIGN_E || cp == CP_SIGN_AI;
+    return cp == CP_SIGN_I || cp == CP_SIGN_E || cp == CP_SIGN_AI;
 }
 
 [[nodiscard]] constexpr bool isModifier(char32_t cp) noexcept {
@@ -83,6 +83,7 @@ inline constexpr char32_t CP_ZWNJ              = 0x200C;
 [[nodiscard]] std::string toUtf8(const std::vector<char32_t>& cps);
 [[nodiscard]] std::vector<char32_t> toCodepoints(std::string_view utf8);
 [[nodiscard]] size_t codepointCount(std::string_view utf8);
+[[nodiscard]] std::string toHexCodepoints(std::string_view utf8);
 
 // Two-part vowel consolidation (e.g. ে + া -> ো)
 [[nodiscard]] char32_t combineTwoPartVowel(char32_t pre, char32_t post) noexcept;
