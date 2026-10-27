@@ -55,6 +55,18 @@ if(BANGLAKEY_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
+# 5. Packaging (CPack)
+if(BANGLAKEY_INSTALL)
+    set(CPACK_PACKAGE_NAME "banglakey")
+    set(CPACK_PACKAGE_VENDOR "BanglaKey Team")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Native Bengali Typing Software for Linux")
+    set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+    set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+    set(CPACK_GENERATOR "TGZ;TXZ")
+    include(CPack)
+endif()
+
 # Summary
 message(STATUS "--------------------------------------------------------")
 message(STATUS " BanglaKey Linux Configuration Summary")
@@ -66,3 +78,4 @@ message(STATUS " Build Tests:      ${BANGLAKEY_BUILD_TESTS}")
 message(STATUS " C++ Standard:     ${CMAKE_CXX_STANDARD}")
 message(STATUS " Install prefix:   ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "--------------------------------------------------------")
+

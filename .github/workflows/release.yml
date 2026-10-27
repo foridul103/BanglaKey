@@ -1,0 +1,67 @@
+name: Release BanglaKey Linux
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Package Release
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:44
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          dnf install -y \
+            gcc-c++ \
+            cmake \
+            ninja-build \
+            extra-cmake-modules \
+            fcitx5-devel \
+            qt6-qtbase-devel \
+            qt6-qtdeclarative-devel \
+            gtest-devel \
+            rpm-build \
+            tar \
+            gzip \
+            xz
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBANGLAKEY_BUILD_ENGINE=ON \
+            -DBANGLAKEY_BUILD_FCITX5=ON \
+            -DBANGLAKEY_BUILD_DESKTOP=ON \
+            -DBANGLAKEY_BUILD_TESTS=ON \
+            -DBANGLAKEY_INSTALL=ON
+
+      - name: Compile BanglaKey
+        run: cmake --build build
+
+      - name: Run Test Suite
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package Standalone Tarball
+        run: |
+          ./scripts/package-release.sh
+          # Move release artifacts to root for upload
+          mkdir -p artifacts
+          cp release/*.tar.* artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: artifacts/*
+          generate_release_notes: true
